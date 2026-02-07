@@ -287,7 +287,7 @@ int main(void) {
         //     pogobot_stopwatch_reset(&timeout_age_watch); // reset of the timer, for age timeout
         // }
         
-
+        update_run_tumble();
         // ********************************************************************************
         // * Step synchronize: wait for next step (if not timed out already)
         // ********************************************************************************
