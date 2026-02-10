@@ -114,7 +114,6 @@ static void motors_turn_right(void) {
 }
 
 static void app_init(void){
-    srand(pogobot_helper_getRandSeed());                              // Initialise rand() avec une graine non triviale (SDK).
     pogobot_infrared_set_power(INFRARED_POWER);                       // Fixe la puissance IR selon notre réglage.
 
     uint8_t mem[3] = {0};                                             // Petit tampon (3 octets) pour récup calibration moteurs.
