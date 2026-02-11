@@ -14,6 +14,7 @@
 #define BOOT_TIME 5 // waiting time before the start of the experience in seconds
 #define LIGHT_THRESHOLD 10
 
+#define MOTOR_POWER 718 // default power of the motor in the else case
 
 
 // ********************************************************************************
@@ -57,21 +58,17 @@ typedef enum {
 typedef enum { RT_PHASE_RUN=0, RT_PHASE_TUMBLE } rt_phase_t;
 
 // ===================== État global =====================
-// Grosse structure "g" = tous les états du robot au runtime. "static userdata_t g;" = unique, global à ce fichier.
-typedef struct {
-    uint8_t dirL, dirR;
-    uint32_t pwmLt, pwmRt, pwmLr, pwmRr;
-    
-    mobile_mode_t mode;        
-    rt_phase_t rt_phase;
-    time_reference_t rt_phase_timer; 
-    
-    uint32_t rt_duration_ms;   
-    bool rt_tumble_left;
-    bool rt_run_backward;      
-} userdata_t;
 
-static userdata_t g; // état global                                 // Déclare l'unique instance globale "g" (initialisée à 0 par défaut).
+uint8_t dirL, dirR;
+uint32_t pwmLt, pwmRt, pwmLr, pwmRr;
+
+mobile_mode_t mode;        
+rt_phase_t rt_phase;
+time_reference_t rt_phase_timer; 
+
+uint32_t rt_duration_ms;   
+bool rt_tumble_left;
+bool rt_run_backward;      
 
 
 // ===================== Fonctions Utiles =====================
@@ -86,31 +83,31 @@ static inline void motors_stop(void){
     pogobot_motor_power_set(motorR, 0);                             // Idem à droite.
 }
 static void motors_forward(void) {
-    pogobot_motor_dir_set(motorL, g.dirL);
-    pogobot_motor_dir_set(motorR, g.dirR);
-    pogobot_motor_power_set(motorL, g.pwmLr);
-    pogobot_motor_power_set(motorR, g.pwmRr);
+    pogobot_motor_dir_set(motorL, dirL);
+    pogobot_motor_dir_set(motorR, dirR);
+    pogobot_motor_power_set(motorL, pwmLr);
+    pogobot_motor_power_set(motorR, pwmRr);
 }
 
 static void motors_backward(void) {
-    pogobot_motor_dir_set(motorL, 1 - g.dirL);
-    pogobot_motor_dir_set(motorR, 1 - g.dirR);
-    pogobot_motor_power_set(motorL, g.pwmLr);
-    pogobot_motor_power_set(motorR, g.pwmRr);
+    pogobot_motor_dir_set(motorL, 1 - dirL);
+    pogobot_motor_dir_set(motorR, 1 - dirR);
+    pogobot_motor_power_set(motorL, pwmLr);
+    pogobot_motor_power_set(motorR, pwmRr);
 }
 
 static void motors_turn_left(void) {
-    pogobot_motor_dir_set(motorL, 1 - g.dirL);
-    pogobot_motor_dir_set(motorR, g.dirR);
-    pogobot_motor_power_set(motorL, g.pwmLt);
-    pogobot_motor_power_set(motorR, g.pwmRt);
+    pogobot_motor_dir_set(motorL, 1 - dirL);
+    pogobot_motor_dir_set(motorR, dirR);
+    pogobot_motor_power_set(motorL, pwmLt);
+    pogobot_motor_power_set(motorR, pwmRt);
 }
 
 static void motors_turn_right(void) {
-    pogobot_motor_dir_set(motorL, g.dirL);
-    pogobot_motor_dir_set(motorR, 1 - g.dirR);
-    pogobot_motor_power_set(motorL, g.pwmLt);
-    pogobot_motor_power_set(motorR, g.pwmRt);
+    pogobot_motor_dir_set(motorL, dirL);
+    pogobot_motor_dir_set(motorR, 1 - dirR);
+    pogobot_motor_power_set(motorL, pwmLt);
+    pogobot_motor_power_set(motorR, pwmRt);
 }
 
 static void app_init(void){
@@ -118,61 +115,68 @@ static void app_init(void){
 
     uint8_t mem[3] = {0};                                             // Petit tampon (3 octets) pour récup calibration moteurs.
     pogobot_motor_dir_mem_get(mem);                                   // Lecture calibration (SDK). Convention : mem[0]=droite, mem[1]=gauche.
-    g.dirR = mem[0];                                                  // Applique la direction logique du moteur droit.
-    g.dirL = mem[1];                                                  // Applique la direction logique du moteur gauche.
+    dirR = mem[0];                                                  // Applique la direction logique du moteur droit.
+    dirL = mem[1];                                                  // Applique la direction logique du moteur gauche.
 
-    // Puissances récupérées depuis EEPROM (SDK)
+    
     uint16_t pwr[3] = {0};
     if (pogobot_motor_power_mem_get(pwr) == 0) {
-        g.pwmRt = pwr[0] * FACT1;
-        g.pwmLt = pwr[1] * FACT1;
-        g.pwmRr = pwr[0] * FACT;
-        g.pwmLr = pwr[1] * FACT;
+        pwmRt = pwr[0] * FACT1;
+        pwmLt = pwr[1] * FACT1;
+        pwmRr = pwr[0] * FACT;
+        pwmLr = pwr[1] * FACT;
 
 
-        printf("Puissances R : L=%lu, R=%lu\n", (unsigned long)g.pwmLr, (unsigned long)g.pwmRr);
-        printf("Puissances T : L=%lu, R=%lu\n", (unsigned long)g.pwmLt, (unsigned long)g.pwmRt);
+        printf("Puissances R : L=%lu, R=%lu\n", (unsigned long)pwmLr, (unsigned long)pwmRr);
+        printf("Puissances T : L=%lu, R=%lu\n", (unsigned long)pwmLt, (unsigned long)pwmRt);
     } else {
-        printf("Erreur de lecture de la mémoire moteur !\n");
+        printf("Erreur de lecture de la mémoire moteur ! On utilise des valeurs par défault\n");
+        pwmRt = MOTOR_POWER * FACT1; 
+        pwmLt = MOTOR_POWER * FACT1;
+        pwmRr = MOTOR_POWER * FACT;
+        pwmLr = MOTOR_POWER * FACT;
+        
     }
 
-    g.mode = MODE_NORMAL;                                             // On démarre en exploration.
+    mode = MODE_NORMAL;                                             // On démarre en exploration.
 
     // Run & tumble : on tire les premières durées et directions.
-    g.rt_phase = RT_PHASE_RUN;                                        // Première phase = RUN (avancer/reculer).
-    pogobot_stopwatch_reset(&g.rt_phase_timer);                               // Timer de phase RT démarré maintenant.
-    g.rt_duration_ms = rand_between(RT_RUN_MIN_MS, RT_RUN_MAX_MS);
-    g.rt_tumble_left   = (rand() & 1) != 0;                           // TUMBLE initial : gauche si bit aléatoire=1 (sinon droite).
-    g.rt_run_backward  = (rand() & 1) != 0;                           // RUN initial : arrière si bit=1 (sinon avant).
+    rt_phase = RT_PHASE_RUN;                                        // Première phase = RUN (avancer/reculer).
+    pogobot_stopwatch_reset(&rt_phase_timer);                               // Timer de phase RT démarré maintenant.
+    rt_duration_ms = rand_between(RT_RUN_MIN_MS, RT_RUN_MAX_MS);
+    rt_tumble_left   = rand() % 2;                           // TUMBLE initial : gauche si bit aléatoire=1 (sinon droite).
+    rt_run_backward  = rand() % 2;                           // RUN initial : arrière si bit=1 (sinon avant).
 
     
 
     // Feedback & moteurs : LED "run", et on démarre en avant/arrière selon le tirage.
-    if (g.rt_run_backward) motors_backward(); else motors_forward();
+    if (rt_run_backward) motors_backward(); else motors_forward();
 }
 
 static void update_run_tumble(void) {
     // Calcul du temps écoulé en ms
-    uint32_t elapsed = (uint32_t)(pogobot_stopwatch_get_elapsed_microseconds(&g.rt_phase_timer) / 1000);
+    uint32_t elapsed = (uint32_t)(pogobot_stopwatch_get_elapsed_microseconds(&rt_phase_timer) / 1000);
 
-    if (g.rt_phase == RT_PHASE_RUN) {
+    if (rt_phase == RT_PHASE_RUN) {
         pogobot_led_setColor(cyan.r, cyan.g, cyan.b);
-        motors_forward();
+        if (rt_run_backward) motors_backward();                      // Si le tirage aléatoire a choisi "reculer"...
+        else                   motors_forward();
 
-        if (elapsed >= g.rt_duration_ms) {
-            g.rt_phase = RT_PHASE_TUMBLE;
-            pogobot_stopwatch_reset(&g.rt_phase_timer);
-            g.rt_duration_ms = rand_between(RT_TUMBLE_MIN_MS, RT_TUMBLE_MAX_MS);
-            g.rt_tumble_left = rand() % 2;
+        if (elapsed >= rt_duration_ms) {
+            rt_phase = RT_PHASE_TUMBLE;
+            pogobot_stopwatch_reset(&rt_phase_timer);
+            rt_duration_ms = rand_between(RT_TUMBLE_MIN_MS, RT_TUMBLE_MAX_MS);
+            rt_tumble_left = rand() % 2;
         }
     } else {
         pogobot_led_setColor(yellow.r, yellow.g, yellow.b);
-        if (g.rt_tumble_left) motors_turn_left(); else motors_turn_right();
+        if (rt_tumble_left) motors_turn_left(); else motors_turn_right();
 
-        if (elapsed >= g.rt_duration_ms) {
-            g.rt_phase = RT_PHASE_RUN;
-            pogobot_stopwatch_reset(&g.rt_phase_timer);
-            g.rt_duration_ms = rand_between(RT_RUN_MIN_MS, RT_RUN_MAX_MS);
+        if (elapsed >= rt_duration_ms) {
+            rt_phase = RT_PHASE_RUN;
+            pogobot_stopwatch_reset(&rt_phase_timer);
+            rt_duration_ms = rand_between(RT_RUN_MIN_MS, RT_RUN_MAX_MS);
+            rt_run_backward = rand() % 2; 
         }
     }
 }
