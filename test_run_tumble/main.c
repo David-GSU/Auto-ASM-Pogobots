@@ -15,7 +15,8 @@
 #define LIGHT_THRESHOLD 10
 
 #define MOTOR_POWER 718 // default power of the motor in the else case
-
+#define IDENTIFIER 99
+#define P_MSG 1
 
 // ********************************************************************************
 // * Initialization: Pogobot led colors structure
@@ -51,7 +52,8 @@ rgb_color white =       {.name = "white",      .r = 25, .g = 25, .b = 25};
 typedef enum { 
     MODE_NORMAL, 
     MODE_ALIGN, 
-    MODE_CONNECTED 
+    MODE_CONNECTED,
+    MODE_ROOT
 } mobile_mode_t;
 
 // Sous-phases pour le run&tumble (utile pour alterner).
@@ -69,7 +71,7 @@ time_reference_t rt_phase_timer;
 uint32_t rt_duration_ms;   
 bool rt_tumble_left;
 bool rt_run_backward;      
-
+int robot_identifier  = IDENTIFIER;
 
 // ===================== Fonctions Utiles =====================
 static uint32_t rand_between(uint32_t min, uint32_t max) {
@@ -112,45 +114,47 @@ static void motors_turn_right(void) {
 
 static void app_init(void){
     pogobot_infrared_set_power(INFRARED_POWER);                       // Fixe la puissance IR selon notre réglage.
+    if(robot_identifier==0) mode = MODE_ROOT;
+    else{
+        uint8_t mem[3] = {0};                                             // Petit tampon (3 octets) pour récup calibration moteurs.
+        pogobot_motor_dir_mem_get(mem);                                   // Lecture calibration (SDK). Convention : mem[0]=droite, mem[1]=gauche.
+        dirR = mem[0];                                                  // Applique la direction logique du moteur droit.
+        dirL = mem[1];                                                  // Applique la direction logique du moteur gauche.
 
-    uint8_t mem[3] = {0};                                             // Petit tampon (3 octets) pour récup calibration moteurs.
-    pogobot_motor_dir_mem_get(mem);                                   // Lecture calibration (SDK). Convention : mem[0]=droite, mem[1]=gauche.
-    dirR = mem[0];                                                  // Applique la direction logique du moteur droit.
-    dirL = mem[1];                                                  // Applique la direction logique du moteur gauche.
-
-    
-    uint16_t pwr[3] = {0};
-    if (pogobot_motor_power_mem_get(pwr) == 0) {
-        pwmRt = pwr[0] * FACT1;
-        pwmLt = pwr[1] * FACT1;
-        pwmRr = pwr[0] * FACT;
-        pwmLr = pwr[1] * FACT;
-
-
-        printf("Puissances R : L=%lu, R=%lu\n", (unsigned long)pwmLr, (unsigned long)pwmRr);
-        printf("Puissances T : L=%lu, R=%lu\n", (unsigned long)pwmLt, (unsigned long)pwmRt);
-    } else {
-        printf("Erreur de lecture de la mémoire moteur ! On utilise des valeurs par défault\n");
-        pwmRt = MOTOR_POWER * FACT1; 
-        pwmLt = MOTOR_POWER * FACT1;
-        pwmRr = MOTOR_POWER * FACT;
-        pwmLr = MOTOR_POWER * FACT;
         
+        uint16_t pwr[3] = {0};
+        if (pogobot_motor_power_mem_get(pwr) == 0) {
+            pwmRt = pwr[0] * FACT1;
+            pwmLt = pwr[1] * FACT1;
+            pwmRr = pwr[0] * FACT;
+            pwmLr = pwr[1] * FACT;
+
+
+            printf("Puissances R : L=%lu, R=%lu\n", (unsigned long)pwmLr, (unsigned long)pwmRr);
+            printf("Puissances T : L=%lu, R=%lu\n", (unsigned long)pwmLt, (unsigned long)pwmRt);
+        } else {
+            printf("Erreur de lecture de la mémoire moteur ! On utilise des valeurs par défault\n");
+            pwmRt = MOTOR_POWER * FACT1; 
+            pwmLt = MOTOR_POWER * FACT1;
+            pwmRr = MOTOR_POWER * FACT;
+            pwmLr = MOTOR_POWER * FACT;
+            
+        }
+
+        mode = MODE_NORMAL;                                             // On démarre en exploration.
+
+        // Run & tumble : on tire les premières durées et directions.
+        rt_phase = RT_PHASE_RUN;                                        // Première phase = RUN (avancer/reculer).
+        pogobot_stopwatch_reset(&rt_phase_timer);                               // Timer de phase RT démarré maintenant.
+        rt_duration_ms = rand_between(RT_RUN_MIN_MS, RT_RUN_MAX_MS);
+        rt_tumble_left   = rand() % 2;                           // TUMBLE initial : gauche si bit aléatoire=1 (sinon droite).
+        rt_run_backward  = rand() % 2;                           // RUN initial : arrière si bit=1 (sinon avant).
+
+        
+
+        // Feedback & moteurs : LED "run", et on démarre en avant/arrière selon le tirage.
+        if (rt_run_backward) motors_backward(); else motors_forward();
     }
-
-    mode = MODE_NORMAL;                                             // On démarre en exploration.
-
-    // Run & tumble : on tire les premières durées et directions.
-    rt_phase = RT_PHASE_RUN;                                        // Première phase = RUN (avancer/reculer).
-    pogobot_stopwatch_reset(&rt_phase_timer);                               // Timer de phase RT démarré maintenant.
-    rt_duration_ms = rand_between(RT_RUN_MIN_MS, RT_RUN_MAX_MS);
-    rt_tumble_left   = rand() % 2;                           // TUMBLE initial : gauche si bit aléatoire=1 (sinon droite).
-    rt_run_backward  = rand() % 2;                           // RUN initial : arrière si bit=1 (sinon avant).
-
-    
-
-    // Feedback & moteurs : LED "run", et on démarre en avant/arrière selon le tirage.
-    if (rt_run_backward) motors_backward(); else motors_forward();
 }
 
 static void update_run_tumble(void) {
@@ -158,7 +162,7 @@ static void update_run_tumble(void) {
     uint32_t elapsed = (uint32_t)(pogobot_stopwatch_get_elapsed_microseconds(&rt_phase_timer) / 1000);
 
     if (rt_phase == RT_PHASE_RUN) {
-        pogobot_led_setColor(cyan.r, cyan.g, cyan.b);
+        //pogobot_led_setColor(cyan.r, cyan.g, cyan.b);
         if (rt_run_backward) motors_backward();                      // Si le tirage aléatoire a choisi "reculer"...
         else                   motors_forward();
 
@@ -169,7 +173,7 @@ static void update_run_tumble(void) {
             rt_tumble_left = rand() % 2;
         }
     } else {
-        pogobot_led_setColor(yellow.r, yellow.g, yellow.b);
+        //pogobot_led_setColor(yellow.r, yellow.g, yellow.b);
         if (rt_tumble_left) motors_turn_left(); else motors_turn_right();
 
         if (elapsed >= rt_duration_ms) {
@@ -181,7 +185,43 @@ static void update_run_tumble(void) {
     }
 }
 
+static void update_root(void){
+    pogobot_led_setColor(green.r, green.g, green.b);
+    if(rand()*100<=P_MSG){
+        pogobot_led_setColors(red.r, red.g, red.b, 3);
+        pogobot_infrared_sendLongMessage_uniSpe(2, (__uint8_t*)4, (__uint16_t) 4);
 
+    }
+}
+
+static void update_mode(void){
+    if(mode!= MODE_ROOT){
+        pogobot_infrared_update();
+        if (pogobot_infrared_message_available()) {
+            for(int i=0;i<5;i++) pogobot_led_setColors(0,0,0,i);
+            //pogobot_led_setColor(purple.r, purple.g, purple.b);
+            int msg_rcv = 0;
+            mode = MODE_CONNECTED;
+            while (pogobot_infrared_message_available() && msg_rcv < MAX_NB_OF_MSG){
+                message_t mr;
+                pogobot_infrared_recover_next_message(&mr);
+                uint8_t ir = mr.header._receiver_ir_index + 1;
+                pogobot_led_setColors(purple.r, purple.g, purple.b, ir);
+                msg_rcv++;
+            }
+        }
+    }
+    switch(mode){
+        case MODE_NORMAL:
+            update_run_tumble();
+        case MODE_ROOT:
+            update_root();
+        case MODE_ALIGN:
+            return;
+        case MODE_CONNECTED:
+            motors_stop();
+    }
+}
 
 int main(void) {
 
@@ -253,7 +293,7 @@ int main(void) {
         //     pogobot_stopwatch_reset(&timeout_age_watch); // reset of the timer, for age timeout
         // }
         
-        update_run_tumble();
+        update_mode();
         // ********************************************************************************
         // * Step synchronize: wait for next step (if not timed out already)
         // ********************************************************************************
