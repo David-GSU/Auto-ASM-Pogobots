@@ -11,11 +11,11 @@
 
 #define DEBUG_LEVEL 0 // 0: nothing; 1: debug; 2: synchronzation; 3: communication
 
-#define BOOT_TIME 5 // waiting time before the start of the experience in seconds
+#define BOOT_TIME 5 // waiting time before the start of the experience in secondsfor(int i=0;i<5;i++) pogobot_led_setColors(0,0,0,i);
 #define LIGHT_THRESHOLD 10
 
 #define MOTOR_POWER 718 // default power of the motor in the else case
-#define IDENTIFIER 99
+#define IDENTIFIER 1
 #define P_MSG 1
 
 // ********************************************************************************
@@ -67,7 +67,9 @@ uint32_t pwmLt, pwmRt, pwmLr, pwmRr;
 mobile_mode_t mode;        
 rt_phase_t rt_phase;
 time_reference_t rt_phase_timer; 
+time_reference_t a_timer; 
 
+uint32_t a_ttl;
 uint32_t rt_duration_ms;   
 bool rt_tumble_left;
 bool rt_run_backward;      
@@ -146,7 +148,9 @@ static void app_init(void){
         // Run & tumble : on tire les premières durées et directions.
         rt_phase = RT_PHASE_RUN;                                        // Première phase = RUN (avancer/reculer).
         pogobot_stopwatch_reset(&rt_phase_timer);                               // Timer de phase RT démarré maintenant.
+        
         rt_duration_ms = rand_between(RT_RUN_MIN_MS, RT_RUN_MAX_MS);
+        a_ttl = 3000;
         rt_tumble_left   = rand() % 2;                           // TUMBLE initial : gauche si bit aléatoire=1 (sinon droite).
         rt_run_backward  = rand() % 2;                           // RUN initial : arrière si bit=1 (sinon avant).
 
@@ -162,7 +166,7 @@ static void update_run_tumble(void) {
     uint32_t elapsed = (uint32_t)(pogobot_stopwatch_get_elapsed_microseconds(&rt_phase_timer) / 1000);
 
     if (rt_phase == RT_PHASE_RUN) {
-        //pogobot_led_setColor(cyan.r, cyan.g, cyan.b);
+        pogobot_led_setColor(cyan.r, cyan.g, cyan.b);
         if (rt_run_backward) motors_backward();                      // Si le tirage aléatoire a choisi "reculer"...
         else                   motors_forward();
 
@@ -194,32 +198,55 @@ static void update_root(void){
     }
 }
 
+static void update_align(void){
+    for(int i=0;i<5;i++) pogobot_led_setColors(0,0,0,i);
+    pogobot_led_setColor(purple.r, purple.g, purple.b);
+    uint32_t elapsed = (uint32_t)(pogobot_stopwatch_get_elapsed_microseconds(&a_timer) / 1000);
+    if(elapsed >= a_ttl){
+        mode = MODE_NORMAL;
+        return;
+    }
+    //motors_turn_right();
+
+}
 static void update_mode(void){
-    if(mode!= MODE_ROOT){
+    if(mode!= MODE_ROOT && mode!= MODE_CONNECTED ){
         pogobot_infrared_update();
         if (pogobot_infrared_message_available()) {
             for(int i=0;i<5;i++) pogobot_led_setColors(0,0,0,i);
             //pogobot_led_setColor(purple.r, purple.g, purple.b);
             int msg_rcv = 0;
-            mode = MODE_CONNECTED;
             while (pogobot_infrared_message_available() && msg_rcv < MAX_NB_OF_MSG){
                 message_t mr;
                 pogobot_infrared_recover_next_message(&mr);
                 uint8_t ir = mr.header._receiver_ir_index + 1;
+                if(mr.header._receiver_ir_index  == 0){
+                    mode = MODE_CONNECTED;
+                    break;
+                }
                 pogobot_led_setColors(purple.r, purple.g, purple.b, ir);
                 msg_rcv++;
+                mode = MODE_ALIGN;
+                pogobot_stopwatch_reset(&a_timer);
+                motors_stop();
+                break;
             }
         }
     }
     switch(mode){
         case MODE_NORMAL:
             update_run_tumble();
+            break;
         case MODE_ROOT:
             update_root();
+            break;
         case MODE_ALIGN:
-            return;
+            update_align();
+            break;
         case MODE_CONNECTED:
+            pogobot_led_setColor(25,25,25);
             motors_stop();
+            break;
     }
 }
 
