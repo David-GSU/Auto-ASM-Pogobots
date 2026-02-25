@@ -20,7 +20,7 @@
 #define MESSAGE 1 // 1 : enable communication reception     
 #define DEFAULT_MODE MODE_NORMAL // Default mode of the robot when not root
 
-#define MAX_GRID 2  
+#define MAX_GRID 1
 #define PWR_SLOW 512
 
 // ********************************************************************************
@@ -67,15 +67,21 @@ rgb_color white =       {.name = "white",      .r = 25, .g = 25, .b = 25};
 #define CON_TIMER_MS 3000
 #define CHECK_TIMER_MS 1000
 #define REC_INPUT_TIMER_MS 300
+#define SEEK_MS 2000
 #define FACT 1.0
 #define FACT1 1.0
 
 typedef enum { 
     MODE_NORMAL, 
-    MODE_ALIGN, 
-    MODE_CONNECTION,
-    MODE_CHECK_CONNECTION,
+    MODE_ALIGN_ROW,
+    MODE_ALIGN_COL, 
+    MODE_CONNECTION_ROW,
+    MODE_CONNECTION_COL,
+    MODE_CHECK_CONNECTION_COL,
+    MODE_CHECK_CONNECTION_ROW,
     MODE_CONNECTED,
+    MODE_ALIGN_TO_SEEK,
+    MODE_SEEK_ROOT,
     MODE_ROOT
 } mobile_mode_t;
 
@@ -98,13 +104,14 @@ time_reference_t check_phase_timer;
 time_reference_t con_timer;
 time_reference_t check_timer;
 time_reference_t rec_input_timer;
-
+time_reference_t seek_timer; 
 time_reference_t a_timer; 
 uint32_t a_ttl;
 uint32_t check_ttl;
 uint32_t con_ttl;
 uint32_t check_phase_ttl;
 uint32_t rec_input_ttl;
+uint32_t seek_ttl;
 
 uint32_t rt_duration_ms;   
 bool rt_tumble_left;
@@ -215,6 +222,7 @@ static void app_init(void){
         check_phase_ttl = CHECK_PHASE_MS; // Durant pendant l'étape de confirmation de connexion ou il restera dans sa phase
         con_ttl = CON_TIMER_MS; // Durant de forward pendant la tentative de connexion
         check_ttl = CHECK_TIMER_MS;
+        seek_ttl = SEEK_MS;
 
         check_phase = CHECK_PHASE_FW;
         rec_input_ttl = REC_INPUT_TIMER_MS;
@@ -236,27 +244,53 @@ static void update_run_tumble(void) {
                 uint8_t ir = mr.header._receiver_ir_index + 1;
                 grid_msg_t recv;
                 memcpy(&recv, mr.payload, GRID_MSG_SIZE);
-                if(recv.col == 0 || recv.row == 0){
-                    if(mr.header._sender_ir_index == 2){
-                        if(mr.header._receiver_ir_index == 0){
-                            mode = MODE_CONNECTION;
-                            pogobot_stopwatch_reset(&con_timer); 
-                            pogobot_stopwatch_reset(&rec_input_timer);
-                            break;
-                        }
-                        pogobot_led_setColors(purple.r, purple.g, purple.b, ir);
-                        msg_rcv++;
-                        mode = MODE_ALIGN;
-                        pogobot_stopwatch_reset(&a_timer);
-                        motors_stop();
+                if(mr.header._sender_ir_index == 2 && recv.col == 0){
+                    if(mr.header._receiver_ir_index == 0){
+                        mode = MODE_CONNECTION_COL;
+                        pogobot_stopwatch_reset(&con_timer); 
+                        pogobot_stopwatch_reset(&rec_input_timer);
                         break;
                     }
-                    else{
-                        pogobot_led_setColor(orange.r, orange.g, orange.b);
+                    pogobot_led_setColors(purple.r, purple.g, purple.b, ir);
+                    msg_rcv++;
+                    mode = MODE_ALIGN_COL;
+                    pogobot_stopwatch_reset(&a_timer);
+                    motors_stop();
+                    break;
+                }
+                else if(mr.header._sender_ir_index == 2  && recv.row == 0){
+                    if(mr.header._receiver_ir_index == 3){
+                        mode = MODE_CONNECTION_ROW;
+                        pogobot_stopwatch_reset(&con_timer); 
+                        pogobot_stopwatch_reset(&rec_input_timer);
+                        break;
                     }
+                    pogobot_led_setColors(purple.r, purple.g, purple.b, ir);
+                    msg_rcv++;
+                    mode = MODE_ALIGN_ROW;
+                    pogobot_stopwatch_reset(&a_timer);
+                    motors_stop();
+                    break;
                 }
                 else{
-                    // Double condition à faire
+                    if(mr.header._sender_ir_index == 2) {
+                        pogobot_stopwatch_reset(&a_timer);
+                        mode = MODE_ALIGN_TO_SEEK;
+                    }
+                    else {
+                    if(mr.header._receiver_ir_index == 3){
+                        mode = MODE_CONNECTION_ROW;
+                        pogobot_stopwatch_reset(&con_timer); 
+                        pogobot_stopwatch_reset(&rec_input_timer);
+                        break;
+                    }
+                    pogobot_led_setColors(purple.r, purple.g, purple.b, ir);
+                    msg_rcv++;
+                    mode = MODE_ALIGN_ROW;
+                    pogobot_stopwatch_reset(&a_timer);
+                    motors_stop();
+                    break;
+                    }
                 }
             }
             pogobot_infrared_clear_message_queue();
@@ -299,7 +333,7 @@ static void update_root(void){
     }
 }
 
-static void update_align(void){
+static void update_align_col(void){
     if(MESSAGE==1){
         pogobot_infrared_update();
         if (pogobot_infrared_message_available()) {
@@ -312,27 +346,53 @@ static void update_align(void){
                 uint8_t ir = mr.header._receiver_ir_index + 1;
                 grid_msg_t recv;
                 memcpy(&recv, mr.payload, GRID_MSG_SIZE);
-                if(recv.col == 0 || recv.row == 0){
-                    if(mr.header._sender_ir_index == 2){
-                        if(mr.header._receiver_ir_index == 0){
-                            mode = MODE_CONNECTION;
-                            pogobot_stopwatch_reset(&con_timer); 
-                            pogobot_stopwatch_reset(&rec_input_timer);
-                            break;
-                        }
-                        pogobot_led_setColors(purple.r, purple.g, purple.b, ir);
-                        msg_rcv++;
-                        mode = MODE_ALIGN;
-                        pogobot_stopwatch_reset(&a_timer);
-                        motors_stop();
+                if(mr.header._sender_ir_index == 2 && recv.col == 0){
+                    if(mr.header._receiver_ir_index == 0){
+                        mode = MODE_CONNECTION_COL;
+                        pogobot_stopwatch_reset(&con_timer); 
+                        pogobot_stopwatch_reset(&rec_input_timer);
                         break;
                     }
-                    else{
-                        pogobot_led_setColor(orange.r, orange.g, orange.b);
+                    pogobot_led_setColors(purple.r, purple.g, purple.b, ir);
+                    msg_rcv++;
+                    mode = MODE_ALIGN_COL;
+                    pogobot_stopwatch_reset(&a_timer);
+                    motors_stop();
+                    break;
+                }
+                else if(mr.header._sender_ir_index == 2  && recv.row == 0){
+                    if(mr.header._receiver_ir_index == 3){
+                        mode = MODE_CONNECTION_ROW;
+                        pogobot_stopwatch_reset(&con_timer); 
+                        pogobot_stopwatch_reset(&rec_input_timer);
+                        break;
                     }
+                    pogobot_led_setColors(purple.r, purple.g, purple.b, ir);
+                    msg_rcv++;
+                    mode = MODE_ALIGN_ROW;
+                    pogobot_stopwatch_reset(&a_timer);
+                    motors_stop();
+                    break;
                 }
                 else{
-                    // Double condition à faire
+                    if(mr.header._sender_ir_index == 2) {
+                        pogobot_stopwatch_reset(&a_timer);
+                        mode = MODE_ALIGN_TO_SEEK;
+                    }
+                    else {
+                    if(mr.header._receiver_ir_index == 3){
+                        mode = MODE_CONNECTION_ROW;
+                        pogobot_stopwatch_reset(&con_timer); 
+                        pogobot_stopwatch_reset(&rec_input_timer);
+                        break;
+                    }
+                    pogobot_led_setColors(purple.r, purple.g, purple.b, ir);
+                    msg_rcv++;
+                    mode = MODE_ALIGN_ROW;
+                    pogobot_stopwatch_reset(&a_timer);
+                    motors_stop();
+                    break;
+                    }
                 }
             }
             pogobot_infrared_clear_message_queue();
@@ -349,48 +409,79 @@ static void update_align(void){
 
 }
 
-static void update_message(void){
-    if(mode == MODE_ALIGN || mode == MODE_NORMAL){
+static void update_align_row(void){
+    if(MESSAGE==1){
         pogobot_infrared_update();
-            if (pogobot_infrared_message_available()) {
-                for(int i=0;i<5;i++) pogobot_led_setColors(0,0,0,i);
-                //pogobot_led_setColor(purple.r, purple.g, purple.b);
-                int msg_rcv = 0;
-                while (pogobot_infrared_message_available() && msg_rcv < MAX_NB_OF_MSG){
-                    message_t mr;
-                    pogobot_infrared_recover_next_message(&mr);
-                    uint8_t ir = mr.header._receiver_ir_index + 1;
-                    if(mr.header._receiver_ir_index  == 0){
-                        mode = MODE_CONNECTION;
+        if (pogobot_infrared_message_available()) {
+            for(int i=0;i<5;i++) pogobot_led_setColors(0,0,0,i);
+            //pogobot_led_setColor(purple.r, purple.g, purple.b);
+            int msg_rcv = 0;
+            while (pogobot_infrared_message_available() && msg_rcv < MAX_NB_OF_MSG){
+                message_t mr;
+                pogobot_infrared_recover_next_message(&mr);
+                uint8_t ir = mr.header._receiver_ir_index + 1;
+                grid_msg_t recv;
+                memcpy(&recv, mr.payload, GRID_MSG_SIZE);
+                if(mr.header._sender_ir_index == 2 && recv.col == 0){
+                    if(mr.header._receiver_ir_index == 0){
+                        mode = MODE_CONNECTION_COL;
                         pogobot_stopwatch_reset(&con_timer); 
                         pogobot_stopwatch_reset(&rec_input_timer);
                         break;
                     }
                     pogobot_led_setColors(purple.r, purple.g, purple.b, ir);
                     msg_rcv++;
-                    mode = MODE_ALIGN;
+                    mode = MODE_ALIGN_COL;
                     pogobot_stopwatch_reset(&a_timer);
                     motors_stop();
                     break;
                 }
-            }
-    }
-    else if(mode == MODE_CONNECTION || mode == MODE_CHECK_CONNECTION){
-        pogobot_infrared_update();
-        
-        if (pogobot_infrared_message_available()) {
-            int msg_rcv = 0;
-            while (pogobot_infrared_message_available() && msg_rcv < MAX_NB_OF_MSG){
-                message_t mr;
-                pogobot_infrared_recover_next_message(&mr);
-                if(mr.header._receiver_ir_index  == 0){
-                    pogobot_stopwatch_reset(&rec_input_timer);
+                else if(mr.header._sender_ir_index == 2  && recv.row == 0){
+                    if(mr.header._receiver_ir_index == 3){
+                        mode = MODE_CONNECTION_ROW;
+                        pogobot_stopwatch_reset(&con_timer); 
+                        pogobot_stopwatch_reset(&rec_input_timer);
+                        break;
+                    }
+                    pogobot_led_setColors(purple.r, purple.g, purple.b, ir);
+                    msg_rcv++;
+                    mode = MODE_ALIGN_ROW;
+                    pogobot_stopwatch_reset(&a_timer);
+                    motors_stop();
+                    break;
                 }
-            } 
+                else{
+                    if(mr.header._sender_ir_index == 2) {
+                        pogobot_stopwatch_reset(&a_timer);
+                        mode = MODE_ALIGN_TO_SEEK;
+                    }
+                    else {
+                    if(mr.header._receiver_ir_index == 3){
+                        mode = MODE_CONNECTION_ROW;
+                        pogobot_stopwatch_reset(&con_timer); 
+                        pogobot_stopwatch_reset(&rec_input_timer);
+                        break;
+                    }
+                    pogobot_led_setColors(purple.r, purple.g, purple.b, ir);
+                    msg_rcv++;
+                    mode = MODE_ALIGN_ROW;
+                    pogobot_stopwatch_reset(&a_timer);
+                    motors_stop();
+                    break;
+                    }
+                }
+            }
+            pogobot_infrared_clear_message_queue();
         }
-        uint32_t elapsed = (uint32_t)(pogobot_stopwatch_get_elapsed_microseconds(&rec_input_timer) / 1000);
-        if (elapsed > rec_input_ttl) mode = MODE_NORMAL;
     }
+    for(int i=0;i<5;i++) pogobot_led_setColors(0,0,0,i);
+    pogobot_led_setColor(purple.r, purple.g, purple.b);
+    uint32_t elapsed = (uint32_t)(pogobot_stopwatch_get_elapsed_microseconds(&a_timer) / 1000);
+    if(elapsed >= a_ttl){
+        mode = MODE_NORMAL;
+        return;
+    }
+    motors_turn_slow_right();
 
 }
 
@@ -424,7 +515,7 @@ static void update_connection_col(void){
     uint32_t elapsed = (uint32_t)(pogobot_stopwatch_get_elapsed_microseconds(&con_timer) / 1000);
     if (elapsed < con_ttl) motors_forward();
     else{
-        mode=MODE_CHECK_CONNECTION;
+        mode=MODE_CHECK_CONNECTION_COL;
         pogobot_stopwatch_reset(&check_phase_timer);
         pogobot_stopwatch_reset(&check_timer);
     }
@@ -443,8 +534,8 @@ static void update_connection_row(void){
 
                 grid_msg_t recv;
                 memcpy(&recv, mr.payload, GRID_MSG_SIZE);
-                pos.row = recv.row;
-                pos.col = recv.col+1;
+                pos.row = recv.row+1;
+                pos.col = recv.col;
                 
                 if(mr.header._receiver_ir_index  == 3){
                     pogobot_stopwatch_reset(&rec_input_timer);
@@ -460,14 +551,14 @@ static void update_connection_row(void){
     uint32_t elapsed = (uint32_t)(pogobot_stopwatch_get_elapsed_microseconds(&con_timer) / 1000);
     if (elapsed < con_ttl) motors_forward();
     else{
-        mode=MODE_CHECK_CONNECTION;
+        mode=MODE_CHECK_CONNECTION_ROW;
         pogobot_stopwatch_reset(&check_phase_timer);
         pogobot_stopwatch_reset(&check_timer);
     }
 
 }
 
-static void update_check_connection(void){
+static void update_check_connection_col(void){
     pogobot_led_setColor(yellow.r,yellow.g,yellow.b);
     if(MESSAGE == 1){
         pogobot_infrared_update();
@@ -478,6 +569,48 @@ static void update_check_connection(void){
                 message_t mr;
                 pogobot_infrared_recover_next_message(&mr);
                 if(mr.header._receiver_ir_index  == 0){
+                    pogobot_stopwatch_reset(&rec_input_timer);
+                }
+            } 
+        }
+        uint32_t elapsed = (uint32_t)(pogobot_stopwatch_get_elapsed_microseconds(&rec_input_timer) / 1000);
+        if (elapsed > rec_input_ttl) mode = MODE_NORMAL;
+    }
+   uint32_t elapsed = (uint32_t)(pogobot_stopwatch_get_elapsed_microseconds(&check_timer) / 1000);
+   if (elapsed < check_ttl){
+        if(check_phase == CHECK_PHASE_FW){
+            uint32_t elapsed = (uint32_t)(pogobot_stopwatch_get_elapsed_microseconds(&check_phase_timer) / 1000);
+            if (elapsed < check_phase_ttl) motors_slow_forward();
+            else{
+                check_phase = CHECK_PHASE_TURN;
+                pogobot_stopwatch_reset(&check_phase_timer);
+            }
+    }
+        else{
+            uint32_t elapsed = (uint32_t)(pogobot_stopwatch_get_elapsed_microseconds(&check_phase_timer) / 1000);
+            if (elapsed < check_phase_ttl) motors_turn_slow_right();
+            else{
+                check_phase = CHECK_PHASE_FW;
+                pogobot_stopwatch_reset(&check_phase_timer);
+            }
+        }
+   }
+   else{
+        mode = MODE_CONNECTED;
+   }
+}
+
+static void update_check_connection_row(void){
+    pogobot_led_setColor(yellow.r,yellow.g,yellow.b);
+    if(MESSAGE == 1){
+        pogobot_infrared_update();
+        
+        if (pogobot_infrared_message_available()) {
+            int msg_rcv = 0;
+            while (pogobot_infrared_message_available() && msg_rcv < MAX_NB_OF_MSG){
+                message_t mr;
+                pogobot_infrared_recover_next_message(&mr);
+                if(mr.header._receiver_ir_index  == 3){
                     pogobot_stopwatch_reset(&rec_input_timer);
                 }
             } 
@@ -520,7 +653,7 @@ static void update_connected(void){
                 while (pogobot_infrared_message_available() && msg_rcv < MAX_NB_OF_MSG){
                     message_t mr;
                     pogobot_infrared_recover_next_message(&mr);
-                    if(mr.header._receiver_ir_index  == 0){
+                    if(mr.header._receiver_ir_index  == 0 || mr.header._receiver_ir_index  == 3){
                         pogobot_stopwatch_reset(&rec_input_timer);
                     }
                 } 
@@ -542,6 +675,61 @@ static void update_connected(void){
     }
 }
 
+static void update_align_to_seek(void){
+    if(MESSAGE==1){
+        pogobot_infrared_update();
+        if (pogobot_infrared_message_available()) {
+            for(int i=0;i<5;i++) pogobot_led_setColors(0,0,0,i);
+            //pogobot_led_setColor(purple.r, purple.g, purple.b);
+            int msg_rcv = 0;
+            while (pogobot_infrared_message_available() && msg_rcv < MAX_NB_OF_MSG){
+                message_t mr;
+                pogobot_infrared_recover_next_message(&mr);
+                uint8_t ir = mr.header._receiver_ir_index + 1;
+                grid_msg_t recv;
+                memcpy(&recv, mr.payload, GRID_MSG_SIZE);
+                if(mr.header._receiver_ir_index == 1) mode = MODE_SEEK_ROOT;
+                }
+            }
+        }
+    pogobot_led_setColor(purple.r, purple.g, purple.b);
+    uint32_t elapsed = (uint32_t)(pogobot_stopwatch_get_elapsed_microseconds(&a_timer) / 1000);
+    if(elapsed >= a_ttl){
+        mode = MODE_NORMAL;
+        return;
+    }
+    motors_turn_slow_right();
+
+}
+
+static void update_seek_root(void){
+    pogobot_led_setColor(light_pink.r,light_pink.g,light_pink.b);
+    if(MESSAGE == 1){
+        pogobot_infrared_update();
+        
+        if (pogobot_infrared_message_available()) {
+            int msg_rcv = 0;
+            while (pogobot_infrared_message_available() && msg_rcv < MAX_NB_OF_MSG){
+                message_t mr;
+                pogobot_infrared_recover_next_message(&mr);
+                grid_msg_t recv;
+                memcpy(&recv, mr.payload, GRID_MSG_SIZE);
+                if(recv.col == 0){
+                    pogobot_stopwatch_reset(&a_timer);
+                    mode = MODE_ALIGN_COL;
+                    break;
+                }
+                if(mr.header._sender_ir_index  == 2){
+                    pogobot_stopwatch_reset(&seek_timer);
+                }
+            } 
+        }
+        uint32_t elapsed = (uint32_t)(pogobot_stopwatch_get_elapsed_microseconds(&seek_timer) / 1000);
+        if (elapsed > seek_ttl) mode = MODE_NORMAL;
+        else motors_forward();
+    }
+}
+
 static void update_mode(void){
     //if(MESSAGE==1){
     //    update_message();
@@ -553,19 +741,33 @@ static void update_mode(void){
         case MODE_ROOT:
             update_root();
             break;
-        case MODE_ALIGN:
-            update_align();
+        case MODE_ALIGN_COL:
+            update_align_col();
             break;
-        case MODE_CONNECTION:
+        case MODE_CONNECTION_COL:
             update_connection_col();
             break;
-        case MODE_CHECK_CONNECTION:
-            update_check_connection();
+        case MODE_ALIGN_ROW:
+            update_align_row();
+            break;
+        case MODE_CONNECTION_ROW:
+            update_connection_row();
+            break;
+        case MODE_CHECK_CONNECTION_ROW:
+            update_check_connection_row();
+            break;
+        case MODE_CHECK_CONNECTION_COL:
+            update_check_connection_col();
             break;
         case MODE_CONNECTED:
             update_connected();
             break;
-
+        case MODE_ALIGN_TO_SEEK:
+            update_align_to_seek();
+            break;
+        case MODE_SEEK_ROOT:
+            update_seek_root();
+            break;
     }
 }
 
