@@ -20,7 +20,7 @@
 #define MESSAGE 1 // 1 : enable communication reception     
 #define DEFAULT_MODE MODE_NORMAL // Default mode of the robot when not root
 
-#define MAX_GRID 1
+#define MAX_GRID 2 // Grille de Taille Max_Grid + 1 
 #define PWR_SLOW 512
 
 // ********************************************************************************
@@ -258,10 +258,10 @@ static void update_run_tumble(void) {
                     motors_stop();
                     break;
                 }
-                else if(mr.header._sender_ir_index == 2  && recv.row == 0){
+                else if(mr.header._sender_ir_index == 1  && recv.row == 0){
                     if(mr.header._receiver_ir_index == 3){
                         mode = MODE_CONNECTION_ROW;
-                        pogobot_stopwatch_reset(&con_timer); 
+                        pogobot_stopwatch_reset(&con_timer);
                         pogobot_stopwatch_reset(&rec_input_timer);
                         break;
                     }
@@ -276,6 +276,7 @@ static void update_run_tumble(void) {
                     if(mr.header._sender_ir_index == 2) {
                         pogobot_stopwatch_reset(&a_timer);
                         mode = MODE_ALIGN_TO_SEEK;
+                        break;
                     }
                     else {
                     if(mr.header._receiver_ir_index == 3){
@@ -360,7 +361,7 @@ static void update_align_col(void){
                     motors_stop();
                     break;
                 }
-                else if(mr.header._sender_ir_index == 2  && recv.row == 0){
+                else if(mr.header._sender_ir_index == 1  && recv.row == 0){
                     if(mr.header._receiver_ir_index == 3){
                         mode = MODE_CONNECTION_ROW;
                         pogobot_stopwatch_reset(&con_timer); 
@@ -375,11 +376,6 @@ static void update_align_col(void){
                     break;
                 }
                 else{
-                    if(mr.header._sender_ir_index == 2) {
-                        pogobot_stopwatch_reset(&a_timer);
-                        mode = MODE_ALIGN_TO_SEEK;
-                    }
-                    else {
                     if(mr.header._receiver_ir_index == 3){
                         mode = MODE_CONNECTION_ROW;
                         pogobot_stopwatch_reset(&con_timer); 
@@ -393,7 +389,6 @@ static void update_align_col(void){
                     motors_stop();
                     break;
                     }
-                }
             }
             pogobot_infrared_clear_message_queue();
         }
@@ -406,7 +401,6 @@ static void update_align_col(void){
         return;
     }
     motors_turn_slow_right();
-
 }
 
 static void update_align_row(void){
@@ -436,7 +430,7 @@ static void update_align_row(void){
                     motors_stop();
                     break;
                 }
-                else if(mr.header._sender_ir_index == 2  && recv.row == 0){
+                else if(mr.header._sender_ir_index == 1  && recv.row == 0){
                     if(mr.header._receiver_ir_index == 3){
                         mode = MODE_CONNECTION_ROW;
                         pogobot_stopwatch_reset(&con_timer); 
@@ -451,11 +445,6 @@ static void update_align_row(void){
                     break;
                 }
                 else{
-                    if(mr.header._sender_ir_index == 2) {
-                        pogobot_stopwatch_reset(&a_timer);
-                        mode = MODE_ALIGN_TO_SEEK;
-                    }
-                    else {
                     if(mr.header._receiver_ir_index == 3){
                         mode = MODE_CONNECTION_ROW;
                         pogobot_stopwatch_reset(&con_timer); 
@@ -470,7 +459,6 @@ static void update_align_row(void){
                     break;
                     }
                 }
-            }
             pogobot_infrared_clear_message_queue();
         }
     }
@@ -495,14 +483,12 @@ static void update_connection_col(void){
                 
                 message_t mr;
                 pogobot_infrared_recover_next_message(&mr);
-
-                grid_msg_t recv;
-                memcpy(&recv, mr.payload, GRID_MSG_SIZE);
-                pos.row = recv.row;
-                pos.col = recv.col+1;
-                
                 if(mr.header._receiver_ir_index  == 0){
                     pogobot_stopwatch_reset(&rec_input_timer);
+                    grid_msg_t recv;
+                    memcpy(&recv, mr.payload, GRID_MSG_SIZE);
+                    pos.row = recv.row+1;
+                    pos.col = recv.col;
                 }
             } 
             pogobot_infrared_clear_message_queue();
@@ -531,14 +517,12 @@ static void update_connection_row(void){
                 
                 message_t mr;
                 pogobot_infrared_recover_next_message(&mr);
-
-                grid_msg_t recv;
-                memcpy(&recv, mr.payload, GRID_MSG_SIZE);
-                pos.row = recv.row+1;
-                pos.col = recv.col;
-                
                 if(mr.header._receiver_ir_index  == 3){
                     pogobot_stopwatch_reset(&rec_input_timer);
+                    grid_msg_t recv;
+                    memcpy(&recv, mr.payload, GRID_MSG_SIZE);
+                    pos.row = recv.row;
+                    pos.col = recv.col+1;
                 }
             } 
             pogobot_infrared_clear_message_queue();
@@ -570,6 +554,7 @@ static void update_check_connection_col(void){
                 pogobot_infrared_recover_next_message(&mr);
                 if(mr.header._receiver_ir_index  == 0){
                     pogobot_stopwatch_reset(&rec_input_timer);
+                    pogobot_infrared_clear_message_queue();
                 }
             } 
         }
@@ -612,6 +597,7 @@ static void update_check_connection_row(void){
                 pogobot_infrared_recover_next_message(&mr);
                 if(mr.header._receiver_ir_index  == 3){
                     pogobot_stopwatch_reset(&rec_input_timer);
+                    pogobot_infrared_clear_message_queue();
                 }
             } 
         }
@@ -655,6 +641,7 @@ static void update_connected(void){
                     pogobot_infrared_recover_next_message(&mr);
                     if(mr.header._receiver_ir_index  == 0 || mr.header._receiver_ir_index  == 3){
                         pogobot_stopwatch_reset(&rec_input_timer);
+                        pogobot_infrared_clear_message_queue();
                     }
                 } 
             }
@@ -662,11 +649,11 @@ static void update_connected(void){
             if (elapsed > rec_input_ttl) mode = MODE_NORMAL;
         }
     if(rand()*100<=P_MSG ){
-        if(pos.col < MAX_GRID) {
+        if(pos.row < MAX_GRID) {
             pogobot_infrared_sendLongMessage_uniSpe(2, (uint8_t*)&pos, GRID_MSG_SIZE);
             pogobot_led_setColors(red.r, red.g, red.b, 3);
         }
-        if(pos.row < MAX_GRID) {
+        if(pos.col < MAX_GRID) {
             pogobot_infrared_sendLongMessage_uniSpe(1, (uint8_t*)&pos, GRID_MSG_SIZE);
             pogobot_led_setColors(red.r, red.g, red.b, 2);
         }
@@ -688,7 +675,11 @@ static void update_align_to_seek(void){
                 uint8_t ir = mr.header._receiver_ir_index + 1;
                 grid_msg_t recv;
                 memcpy(&recv, mr.payload, GRID_MSG_SIZE);
-                if(mr.header._receiver_ir_index == 1) mode = MODE_SEEK_ROOT;
+                if(mr.header._receiver_ir_index == 1){
+                    mode = MODE_SEEK_ROOT;
+                    pogobot_infrared_clear_message_queue();
+                    break;
+                }
                 }
             }
         }
@@ -714,14 +705,20 @@ static void update_seek_root(void){
                 pogobot_infrared_recover_next_message(&mr);
                 grid_msg_t recv;
                 memcpy(&recv, mr.payload, GRID_MSG_SIZE);
-                if(recv.col == 0){
+                if(recv.col == 0 && mr.header._sender_ir_index == 2){
                     pogobot_stopwatch_reset(&a_timer);
                     mode = MODE_ALIGN_COL;
                     break;
                 }
-                if(mr.header._sender_ir_index  == 2){
-                    pogobot_stopwatch_reset(&seek_timer);
+                else if(mr.header._sender_ir_index == 1){
+                    mode = MODE_ALIGN_ROW;
+                    break;
                 }
+                else if(mr.header._sender_ir_index  == 2){
+                    pogobot_stopwatch_reset(&seek_timer);
+                    break;
+                }
+                pogobot_infrared_clear_message_queue();
             } 
         }
         uint32_t elapsed = (uint32_t)(pogobot_stopwatch_get_elapsed_microseconds(&seek_timer) / 1000);
