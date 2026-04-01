@@ -15,13 +15,13 @@
 #define LIGHT_THRESHOLD 10
 
 #define MOTOR_POWER 718 // default power of the motor in the else case
-#define IDENTIFIER 1
+#define IDENTIFIER 0
 #define P_MSG 1
 #define MESSAGE 1 // 1 : enable communication reception     
 #define DEFAULT_MODE MODE_NORMAL // Default mode of the robot when not root
 
 #define MAX_GRID 2 // Grille de Taille Max_Grid + 1 
-#define PWR_SLOW 512
+#define PWR_SLOW 350
 
 // ********************************************************************************
 // * Structure pour les messages
@@ -65,9 +65,10 @@ rgb_color white =       {.name = "white",      .r = 25, .g = 25, .b = 25};
 #define A_TTL_MS 3000
 #define CHECK_PHASE_MS 100
 #define CON_TIMER_MS 3000
-#define CHECK_TIMER_MS 1000
+#define CHECK_TIMER_MS 1600
 #define REC_INPUT_TIMER_MS 300
-#define SEEK_MS 2000
+#define SEEK_MS 1000
+#define MAX_MS 6000
 #define FACT 1.0
 #define FACT1 1.0
 
@@ -106,12 +107,14 @@ time_reference_t check_timer;
 time_reference_t rec_input_timer;
 time_reference_t seek_timer; 
 time_reference_t a_timer; 
+time_reference_t max_timer; 
 uint32_t a_ttl;
 uint32_t check_ttl;
 uint32_t con_ttl;
 uint32_t check_phase_ttl;
 uint32_t rec_input_ttl;
 uint32_t seek_ttl;
+uint32_t max_ttl;
 
 uint32_t rt_duration_ms;   
 bool rt_tumble_left;
@@ -135,6 +138,7 @@ static void motors_forward(void) {
     pogobot_motor_dir_set(motorR, dirR);
     pogobot_motor_power_set(motorL, pwmLr);
     pogobot_motor_power_set(motorR, pwmRr);
+    pogobot_motor_power_set(motorB, 0);
 }
 
 static void motors_backward(void) {
@@ -142,6 +146,7 @@ static void motors_backward(void) {
     pogobot_motor_dir_set(motorR, 1 - dirR);
     pogobot_motor_power_set(motorL, pwmLr);
     pogobot_motor_power_set(motorR, pwmRr);
+    pogobot_motor_power_set(motorB, 0);
 }
 
 static void motors_turn_left(void) {
@@ -149,6 +154,7 @@ static void motors_turn_left(void) {
     pogobot_motor_dir_set(motorR, dirR);
     pogobot_motor_power_set(motorL, pwmLt);
     pogobot_motor_power_set(motorR, pwmRt);
+    pogobot_motor_power_set(motorB, 0);
 }
 
 static void motors_turn_right(void) {
@@ -156,6 +162,7 @@ static void motors_turn_right(void) {
     pogobot_motor_dir_set(motorR, 1 - dirR);
     pogobot_motor_power_set(motorL, pwmLt);
     pogobot_motor_power_set(motorR, pwmRt);
+    pogobot_motor_power_set(motorB, 0);
 }
 
 static void motors_turn_slow_right(void) {
@@ -163,6 +170,7 @@ static void motors_turn_slow_right(void) {
     pogobot_motor_dir_set(motorR, 1 - dirR);
     pogobot_motor_power_set(motorL, PWR_SLOW);
     pogobot_motor_power_set(motorR, PWR_SLOW);
+    pogobot_motor_power_set(motorB, 0);
 }
 
 static void motors_slow_forward(void) {
@@ -170,6 +178,7 @@ static void motors_slow_forward(void) {
     pogobot_motor_dir_set(motorR, dirR);
     pogobot_motor_power_set(motorL, PWR_SLOW);
     pogobot_motor_power_set(motorR, PWR_SLOW);
+    pogobot_motor_power_set(motorB, 0);
 }
 
 static void app_init(void){
@@ -223,6 +232,7 @@ static void app_init(void){
         con_ttl = CON_TIMER_MS; // Durant de forward pendant la tentative de connexion
         check_ttl = CHECK_TIMER_MS;
         seek_ttl = SEEK_MS;
+        max_ttl = MAX_MS;
 
         check_phase = CHECK_PHASE_FW;
         rec_input_ttl = REC_INPUT_TIMER_MS;
@@ -234,8 +244,8 @@ static void app_init(void){
 static void update_run_tumble(void) {
     if(MESSAGE==1){
         pogobot_infrared_update();
+        for(int i=0;i<5;i++) pogobot_led_setColors(0,0,0,i);
         if (pogobot_infrared_message_available()) {
-            for(int i=0;i<5;i++) pogobot_led_setColors(0,0,0,i);
             //pogobot_led_setColor(purple.r, purple.g, purple.b);
             int msg_rcv = 0;
             while (pogobot_infrared_message_available() && msg_rcv < MAX_NB_OF_MSG){
@@ -309,11 +319,11 @@ static void update_run_tumble(void) {
             rt_phase = RT_PHASE_TUMBLE;
             pogobot_stopwatch_reset(&rt_phase_timer);
             rt_duration_ms = rand_between(RT_TUMBLE_MIN_MS, RT_TUMBLE_MAX_MS);
-            rt_tumble_left = rand() % 2;
+            rt_tumble_left = rand() / RAND_MAX;
         }
     } else {
         //pogobot_led_setColor(yellow.r, yellow.g, yellow.b);
-        if (rt_tumble_left) motors_turn_left(); else motors_turn_right();
+        if (rt_tumble_left > 0.33) motors_turn_left(); else motors_turn_right();
 
         if (elapsed >= rt_duration_ms) {
             rt_phase = RT_PHASE_RUN;
@@ -639,15 +649,47 @@ static void update_connected(void){
                 while (pogobot_infrared_message_available() && msg_rcv < MAX_NB_OF_MSG){
                     message_t mr;
                     pogobot_infrared_recover_next_message(&mr);
-                    if(mr.header._receiver_ir_index  == 0 || mr.header._receiver_ir_index  == 3){
+                    if(pos.col == 0){
+                        if(mr.header._receiver_ir_index  == 0){
                         pogobot_stopwatch_reset(&rec_input_timer);
                         pogobot_infrared_clear_message_queue();
+                        }
+                    }
+                    if(pos.row == 0){
+                        if(mr.header._receiver_ir_index  == 3){
+                        pogobot_stopwatch_reset(&rec_input_timer);
+                        pogobot_infrared_clear_message_queue();
+                        }
+                    }
+                    else{
+                        if(mr.header._receiver_ir_index  == 3){
+                        pogobot_stopwatch_reset(&rec_input_timer);
+                        pogobot_infrared_clear_message_queue();
+                        }
                     }
                 } 
             }
             uint32_t elapsed = (uint32_t)(pogobot_stopwatch_get_elapsed_microseconds(&rec_input_timer) / 1000);
             if (elapsed > rec_input_ttl) mode = MODE_NORMAL;
         }
+
+    if(check_phase == CHECK_PHASE_FW){
+            uint32_t elapsed = (uint32_t)(pogobot_stopwatch_get_elapsed_microseconds(&check_phase_timer) / 1000);
+            if (elapsed < check_phase_ttl) motors_slow_forward();
+            else{
+                check_phase = CHECK_PHASE_TURN;
+                pogobot_stopwatch_reset(&check_phase_timer);
+            }
+    } else{
+        uint32_t elapsed = (uint32_t)(pogobot_stopwatch_get_elapsed_microseconds(&check_phase_timer) / 1000);
+            if (elapsed < check_phase_ttl) motors_stop();
+            else{
+                check_phase = CHECK_PHASE_FW;
+                pogobot_stopwatch_reset(&check_phase_timer);
+            }
+    }
+    for(int i=0;i<5;i++) pogobot_led_setColors(0,0,0,i);
+
     if(rand()*100<=P_MSG ){
         if(pos.row < MAX_GRID) {
             pogobot_infrared_sendLongMessage_uniSpe(2, (uint8_t*)&pos, GRID_MSG_SIZE);
@@ -677,6 +719,8 @@ static void update_align_to_seek(void){
                 memcpy(&recv, mr.payload, GRID_MSG_SIZE);
                 if(mr.header._receiver_ir_index == 1){
                     mode = MODE_SEEK_ROOT;
+                    pogobot_stopwatch_reset(&seek_timer);
+                    pogobot_stopwatch_reset(&max_timer);
                     pogobot_infrared_clear_message_queue();
                     break;
                 }
@@ -722,8 +766,9 @@ static void update_seek_root(void){
             } 
         }
         uint32_t elapsed = (uint32_t)(pogobot_stopwatch_get_elapsed_microseconds(&seek_timer) / 1000);
-        if (elapsed > seek_ttl) mode = MODE_NORMAL;
-        else motors_forward();
+        uint32_t elapsed_max = (uint32_t)(pogobot_stopwatch_get_elapsed_microseconds(&max_timer) / 1000);
+        if (elapsed > seek_ttl || elapsed_max > max_ttl) mode = MODE_NORMAL;
+        else motors_slow_forward();
     }
 }
 
