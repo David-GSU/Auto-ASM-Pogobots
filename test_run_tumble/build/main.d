@@ -47,7 +47,10 @@ build/main.o: main.c ../../includes/pogobot.h \
  ../../includes/ts4231.h ../../includes/ir_uart.h ../../includes/imu.h \
  ../../includes/spi.h ../../includes/pogobot_ir.h ../../includes/rgb.h \
  ../../includes/FifoBuffer.h ../../includes/sleep.h ../../includes/adc.h \
- ../../includes/slip.h ../../includes/release.h
+ ../../includes/slip.h ../../includes/release.h \
+ ../../tools//include/litex/pythondata-software-picolibc/pythondata_software_picolibc/data/newlib/libc/include/math.h \
+ ../../tools//include/litex/pythondata-software-picolibc/pythondata_software_picolibc/data/newlib/libc/include/ieeefp.h \
+ ../../tools//include/litex/pythondata-software-picolibc/pythondata_software_picolibc/data/newlib/libc/include/machine/math.h
 ../../includes/pogobot.h:
 /usr/lib/gcc/x86_64-linux-gnu/13/include/stddef.h:
 ../../tools//include/litex/pythondata-software-picolibc/pythondata_software_picolibc/data/newlib/libc/include/stdint.h:
@@ -105,3 +108,6 @@ build/main.o: main.c ../../includes/pogobot.h \
 ../../includes/adc.h:
 ../../includes/slip.h:
 ../../includes/release.h:
+../../tools//include/litex/pythondata-software-picolibc/pythondata_software_picolibc/data/newlib/libc/include/math.h:
+../../tools//include/litex/pythondata-software-picolibc/pythondata_software_picolibc/data/newlib/libc/include/ieeefp.h:
+../../tools//include/litex/pythondata-software-picolibc/pythondata_software_picolibc/data/newlib/libc/include/machine/math.h:

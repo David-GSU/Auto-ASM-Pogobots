@@ -1,5 +1,9 @@
 #include "pogobot.h"
 #include "time.h"
+#include "math.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #define INFRARED_POWER 2 // 1,2,3
 
@@ -15,13 +19,132 @@
 #define LIGHT_THRESHOLD 10
 
 #define MOTOR_POWER 718 // default power of the motor in the else case
-#define IDENTIFIER 1
+#define IDENTIFIER 0
 #define P_MSG 1
 #define MESSAGE 1 // 1 : enable communication reception     
 #define DEFAULT_MODE MODE_NORMAL // Default mode of the robot when not root
 
 #define MAX_GRID 2 // Grille de Taille Max_Grid + 1 
 #define PWR_SLOW 380
+
+
+#define FLAG_BOOT_TIME 10
+#define RESET_NB_IT 100
+
+
+
+// ********************************************************************************
+// * FLAGGGGG
+// * 
+// ********************************************************************************
+
+
+// ********************************************************************************
+// * Controller 1
+// * Insert here the Pogobot controller (in flagAutomata > src > simulationAnalysis > ... > learning > run_00X > data > data_env_controllers)
+// ********************************************************************************
+
+// flagAutomata individual controller run 005, gen 01137, eval 0013650, nb_ind 005
+uint16_t ann1_nb_layers = 1;  // nb_layers = 1 input layer + N hidden layers. Output layer excluded
+uint16_t ann1_input_size = 4;
+uint16_t ann1_output_size = 3;
+uint16_t ann1_nb_neurons_l0 = 4;
+uint16_t ann1_nb_neurons_l1 = 3;
+const double ann1_weights_l0_l1[4][3] = {{1.657529087536642, -5.693473362807253e-10, -14.360303863493826}, {0.36948342338722107, -16.28174309395963, -1.3883482434450795e-09}, {8.691410612524114, 11.18618053661279, -9.518330154726985e-10}, {5.5109002178463875, -2.064617276422583e-09, 10.013473833401028}};
+const double ann1_biases_l0_l1[3] = {-10.768765433231158, -5.095562560351923, -4.346830032059591};
+const void* ann1_weights[] = {ann1_weights_l0_l1};
+const double* ann1_biases[] = {ann1_biases_l0_l1};
+const int ann1_weights_sizes[][2] = {{4, 3}};
+const int ann1_biases_sizes[] = {3};
+double ann1_input_layer[4] = {3};
+double ann1_output_layer[3] = {3};
+
+#define ANN1_MAX_NB_NEURONS_ALL_LAYERS 4
+
+#define ANN1_ACTIVATION_FUNCTION_ARRAY tanh_activation_array
+
+#define ANN1_AGENT "agentCoordinates_gradient"
+
+#define ANN1_CHEMICALS_TO_SPREAD_SIZE 1
+
+#define ANN1_PHENOTYPE_SIZE 2
+
+#define ANN1_STACKING_MODE "None"
+
+// flagAutomata individual controller run 009, gen 00760, eval 0012935, nb_ind 014
+uint16_t ann2_nb_layers = 3;  // nb_layers = 1 input layer + N hidden layers. Output layer excluded
+uint16_t ann2_input_size = 6;
+uint16_t ann2_output_size = 3;
+uint16_t ann2_nb_neurons_l0 = 6;
+uint16_t ann2_nb_neurons_l1 = 5;
+uint16_t ann2_nb_neurons_l2 = 5;
+uint16_t ann2_nb_neurons_l3 = 3;
+const double ann2_weights_l0_l1[6][5] = {{5.35679353601543, -0.198492102838009, -0.6326508976830763, 5.668771055499616, -3.8155366025919193}, {-3.416373602299471, 3.9854818996315697, -2.973390046725123, -8.193844922922217, 5.14409543963802}, {2.518712534561812, 0.5997819737920176, 0.4129294011896631, -4.964895336728777, -0.6142388100747479}, {1.661495642376286, -0.44886181228448885, 0.8290681415901667, -5.140490581404038, 8.93886873430944}, {-0.18004714712400058, 1.925105701725898, 8.246883284256608, 5.738312078111307, 1.3266563571988845}, {0.6929823725934803, 0.9146533000892039, -1.286330998651206, 1.1111152923325833, -2.4385806220530624}};
+const double ann2_weights_l1_l2[5][5] = {{-4.7095580252780005, 5.019642264570646, 1.1611879130312783, 1.3793740241755565, -1.529082810918051}, {7.649644976841016, -0.3191302558505322, -0.17557970683012664, 0.27367495647609186, 1.648468341440998}, {1.2970953901650715, 4.648167267595846, -1.0984168193743795, -7.568209733507465, -5.076042635944056}, {3.2585691213401535, 1.4695320667744727, 0.9323846556367235, -4.638513830476187, 5.507940392322525}, {-2.0020607322188697, -5.971514997212363, 2.5599499568575492, 2.824444648791228, -5.141783171184263}};
+const double ann2_weights_l2_l3[5][3] = {{1.5535447817971122, -1.3462980624888, -1.1949044434424758}, {-3.0368983392899613, -5.33087799958262, -2.2267297363756753}, {-0.6230369218757535, -1.527290654181376, -1.6656130078209794}, {-2.9114810470068675, 1.8526862250383471, 4.6949547717662945}, {6.545229539660262, 4.770212574823045, 4.363068913594301}};
+const double ann2_biases_l0_l1[5] = {-1.6792189966751123, -5.600406557175489, 5.723488648134748, -0.9079578414675723, 2.3513075743958427};
+const double ann2_biases_l1_l2[5] = {1.1487944921634776, -1.1014267353058935, 4.569753482018635, 2.7693303684679687, 1.288304270337402};
+const double ann2_biases_l2_l3[3] = {0.3697104215974615, -2.0281610550637703, -2.7800826480033156};
+const void* ann2_weights[] = {ann2_weights_l0_l1, ann2_weights_l1_l2, ann2_weights_l2_l3};
+const double* ann2_biases[] = {ann2_biases_l0_l1, ann2_biases_l1_l2, ann2_biases_l2_l3};
+const int ann2_weights_sizes[][2] = {{6, 5}, {5, 5}, {5, 3}};
+const int ann2_biases_sizes[] = {5, 5, 3};
+double ann2_input_layer[6] = {5, 5, 3};
+double ann2_output_layer[3] = {5, 5, 3};
+
+#define ANN2_MAX_NB_NEURONS_ALL_LAYERS 6
+
+#define ANN2_ACTIVATION_FUNCTION_ARRAY tanh_activation_array
+
+#define ANN2_AGENT "agent2Outputs_RGB"
+
+#define ANN2_CHEMICALS_TO_SPREAD_SIZE 1
+
+#define ANN2_PHENOTYPE_SIZE 3
+
+#define ANN2_STACKING_MODE "ann1_ann2_modelC"
+
+// ********************************************************************************
+// * Other global variables
+// ********************************************************************************
+
+#ifdef ANN2_MAX_NB_NEURONS_ALL_LAYERS
+    #define MAX(a,b) ((a)>(b)?(a):(b))
+    #define MAX_NB_NEURONS_ALL_LAYERS MAX(ANN1_MAX_NB_NEURONS_ALL_LAYERS, ANN2_MAX_NB_NEURONS_ALL_LAYERS)
+    #define CHEMICALS_TO_SPREAD_SIZE ANN2_CHEMICALS_TO_SPREAD_SIZE
+    #define PHENOTYPE_SIZE ANN2_PHENOTYPE_SIZE
+    #define NB_AGENT_CONTROLLERS 2
+#else
+    #define MAX_NB_NEURONS_ALL_LAYERS ANN1_MAX_NB_NEURONS_ALL_LAYERS
+    #define CHEMICALS_TO_SPREAD_SIZE ANN1_CHEMICALS_TO_SPREAD_SIZE
+    #define PHENOTYPE_SIZE ANN1_PHENOTYPE_SIZE
+    #define NB_AGENT_CONTROLLERS 1
+#endif
+
+double previous_layer[MAX_NB_NEURONS_ALL_LAYERS] = {0.0};
+double weighted_sum[MAX_NB_NEURONS_ALL_LAYERS] = {0.0};
+double my_chemicals_to_spread[CHEMICALS_TO_SPREAD_SIZE];
+double my_phenotype[PHENOTYPE_SIZE];
+int my_led_index = -1;
+int color_index = -1;
+
+
+// ********************************************************************************
+// * Pogobot message structure
+// ********************************************************************************
+
+typedef struct RawMessage {
+    uint16_t sender_id;
+    uint16_t age;
+    double chemicals_to_spread[CHEMICALS_TO_SPREAD_SIZE];
+} RawMessage;
+
+#define MSG_SIZE sizeof(RawMessage) // number of bytes
+
+typedef union message_template {
+    uint8_t msg_array[MSG_SIZE];
+    RawMessage msg_values;
+} message;
 
 // ********************************************************************************
 // * Structure pour les messages
@@ -68,9 +191,12 @@ rgb_color white =       {.name = "white",      .r = 25, .g = 25, .b = 25};
 #define CHECK_TIMER_MS 1600
 #define REC_INPUT_TIMER_MS 300
 #define SEEK_MS 1000
+#define FINISH_MS 3000
 #define MAX_MS 6000
 #define FACT 1.0
 #define FACT1 1.0
+
+bool flag_light_initialized = false;
 
 typedef enum { 
     MODE_NORMAL, 
@@ -80,9 +206,11 @@ typedef enum {
     MODE_CHECK_CONNECTION_COL,
     MODE_CHECK_CONNECTION_ROW,
     MODE_CONNECTED,
+    MODE_FLAG,
     MODE_ALIGN_TO_SEEK,
     MODE_SEEK_ROOT,
-    MODE_ROOT
+    MODE_ROOT,
+    MODE_FLAG_LIGHT
 } mobile_mode_t;
 
 // Sous-phases pour le run&tumble (utile pour alterner).
@@ -96,7 +224,7 @@ uint32_t pwmLt, pwmRt, pwmLr, pwmRr;
 
 mobile_mode_t mode;        
 rt_phase_t rt_phase;
-time_reference_t rt_phase_timer; 
+time_reference_t rt_phase_timer;
 
 
 check_phase_t check_phase;
@@ -106,13 +234,15 @@ time_reference_t check_timer;
 time_reference_t rec_input_timer;
 time_reference_t seek_timer; 
 time_reference_t a_timer; 
-time_reference_t max_timer; 
+time_reference_t max_timer;
+time_reference_t finish_timer;  
 uint32_t a_ttl;
 uint32_t check_ttl;
 uint32_t con_ttl;
 uint32_t check_phase_ttl;
 uint32_t rec_input_ttl;
 uint32_t seek_ttl;
+uint32_t finish_ttl;
 uint32_t max_ttl;
 
 uint32_t rt_duration_ms;   
@@ -120,6 +250,394 @@ bool rt_tumble_left;
 bool rt_run_backward;  
 
 int robot_identifier  = IDENTIFIER;
+
+    // ********************************************************************************
+    // * Initialization: parameters and initial conditions
+    // ********************************************************************************
+
+
+
+time_reference_t timeout_N = {0};
+time_reference_t timeout_W = {0};
+time_reference_t timeout_E = {0};
+time_reference_t timeout_S = {0};
+time_reference_t timeout_NWES[4];
+
+uint32_t seconds = 0;
+uint32_t max_chemicals_to_spread_validity_time_seconds = 30;
+
+time_reference_t timeout_phenotypic_freshness;
+uint32_t phenotypic_freshness_time_seconds = 3;
+uint32_t hanabi_blinking_time_seconds = 0.8;
+
+uint16_t my_pogobot_id = 0;
+uint16_t age = 0;
+
+double p_send_per_step = 1.0/2.0;
+uint16_t counter_rcvd_msgs = 0;
+uint8_t data[MSG_SIZE];
+
+message msg_from_neighbor;
+
+uint8_t nb_rgb_colors = 7;
+double p_change_led_color = 1.0/1000.0;
+
+uint16_t nb_ir = 0;
+uint8_t my_receiver_ir_index = 5;
+uint8_t starting_index_NWES = 5;
+
+// ********************************************************************************
+// * Functions
+// ********************************************************************************
+
+double tanh_approx(double x); // chatGPT
+double sigmoid_activation_value(double value);
+void tanh_activation_array(double* neurons_layer, int neurons_layer_size);
+void sigmoid_activation_array(double* neurons_layer, int neurons_layer_size);
+void fnn_predict(double *ann_input_layer, double *ann_output_layer, int nb_layers, const int (*weights_sizes)[2], const void **weights, const double **biases, void (*activation_function)(double*, int), int input_size, int output_size);
+void display_phenotype(double* my_phenotype);
+void update_robot_state(uint16_t age); // state = my_chemicals_to_spread + my_phenotype
+void print_all_chemicals_infos(uint16_t my_pogobot_id, uint16_t age);
+
+// parameters to print values of type "double" correctly
+#define PRECISION 1000000 // conversion double<->int (ex.: 100 is 2 decimals) -- note: when sending/receiving, payload is a list of *bytes*
+#define NB_DIGIT log_10(PRECISION)
+int log_10(int power_of_ten);
+int double_get_decimal_part(double value);
+void double_get_decimal_part_string(double value, char *res);
+int double_get_integer_part(double value);
+void print_double(double val);
+
+//-------------------------------------------------------------
+
+double tanh_approx(double x) { // chatGPT
+    if (x > 20.0) return 1.0;  // Large positive values return 1
+    if (x < -20.0) return -1.0; // Large negative values return -1
+    double exp_pos = exp(x);
+    double exp_neg = exp(-x);
+    return (exp_pos - exp_neg) / (exp_pos + exp_neg);
+}
+
+//-------------------------------------------------------------
+
+void tanh_activation_array(double* neurons_layer, int neurons_layer_size){
+    for (int i=0; i<neurons_layer_size; i++){
+        neurons_layer[i] = tanh(neurons_layer[i]); // hyperbolic tangent
+    }
+}
+
+//-------------------------------------------------------------
+
+double sigmoid_activation_value(double value){ // sigmoid(x) = 1 / (1 + np.exp(-x))
+    return 1 / (1 + exp(-value));
+}
+
+//-------------------------------------------------------------
+
+void sigmoid_activation_array(double* neurons_layer, int neurons_layer_size){ // sigmoid(x) = 1 / (1 + np.exp(-x))
+    int i;
+    for (i=0; i<neurons_layer_size; i++){
+        neurons_layer[i] = 1 / (1 + exp(-neurons_layer[i]));
+    }
+}
+
+//-------------------------------------------------------------
+
+void fnn_predict(
+    double *ann_input_layer,
+    double *ann_output_layer,
+    int nb_layers,
+    const int (*weights_sizes)[2],
+    const void **weights,
+    const double **biases,
+    void (*activation_function)(double*, int),
+    int input_size,
+    int output_size){
+
+    int nb_layer;
+    int nb_neurons_prev_layer;
+    int nb_neurons_next_layer;
+    int n_next;
+    int n_prev;
+    int i;
+
+    for(int i=0; i<input_size; i++){
+        previous_layer[i] = ann_input_layer[i];
+    }
+
+    if (DEBUG_LEVEL == 5 || DEBUG_LEVEL == 99) {printf("\n[FNN] Updating chemicals. Forward Neural Network computation detail\n\tann_input_layer = [ "); for (int i = 0; i < ann1_input_size; i++) {print_double(previous_layer[i]); printf(" ");} printf("]\n");}
+
+    for(nb_layer=0; nb_layer<nb_layers; nb_layer++){
+        nb_neurons_prev_layer = weights_sizes[nb_layer][0];
+        nb_neurons_next_layer = weights_sizes[nb_layer][1];
+
+        // printf("\nnb_layer %d", nb_layer);
+        // printf("\nb_neurons_prev_layer %d", nb_neurons_prev_layer);
+        // printf("\nb_neurons_next_layer %d", nb_neurons_next_layer);
+
+        if (DEBUG_LEVEL == 5 || DEBUG_LEVEL == 99) {printf("\n[FNN] ann_input_layer (previous layer) = [ "); for (i = 0; i < nb_neurons_prev_layer; i++) {print_double(previous_layer[i]); printf(" ");} printf("]\n");}
+
+        for (n_next=0; n_next<nb_neurons_next_layer; n_next++){
+            weighted_sum[n_next] = 0.0;
+            //printf("nb neuron next layer %d\n", n_next);
+            double (*weights_lprev_lnext)[nb_neurons_next_layer] = (double (*)[nb_neurons_next_layer]) weights[nb_layer];
+            for (n_prev=0; n_prev<nb_neurons_prev_layer; n_prev++){
+                //print_double(previous_layer[n_prev]); printf(" * \n");
+                //print_double(weights_lprev_lnext[n_prev][n_next]); printf(" = \n");
+                //print_double(weighted_sum[n_next]); printf(" --> ");
+                weighted_sum[n_next] += previous_layer[n_prev] * weights_lprev_lnext[n_prev][n_next];
+                //print_double(weighted_sum[n_next]); printf("\n");
+            }
+            //printf(" + bias (");
+            weighted_sum[n_next] += biases[nb_layer][n_next]; //print_double(biases[nb_layer][n_next]); printf(" ) = "); print_double(weighted_sum[n_next]); printf("\n---\n");
+        }
+        if (DEBUG_LEVEL == 5 || DEBUG_LEVEL == 99) {printf("\tweighted_sum before activation layer %d = [ ", nb_layer); for (int i = 0; i < nb_neurons_next_layer; i++) {print_double(weighted_sum[i]); printf(" ");} printf("]\n");}
+        activation_function(weighted_sum, nb_neurons_next_layer);
+        for(i=0; i<nb_neurons_next_layer; i++){
+            previous_layer[i] = weighted_sum[i]; // the last previous_layer is the output layer of the NN
+        }
+        
+        if (DEBUG_LEVEL == 5 || DEBUG_LEVEL == 99) {printf("\tweighted_sum after activation layer %d = [ ", nb_layer); for (int i = 0; i < nb_neurons_next_layer; i++) {print_double(previous_layer[i]); printf(" ");} printf("]\n");}
+    }
+
+    for(i=0; i<output_size; i++){
+        ann_output_layer[i] = previous_layer[i]; // the last previous_layer is the output layer of the NN
+    }
+    if (DEBUG_LEVEL == 5 || DEBUG_LEVEL == 99) {printf("\tann_output_layer_NWES = [ "); for (int i = 0; i < output_size; i++) {print_double(ann_output_layer[i]);} printf(" "); printf("]\n");}
+}
+
+//-------------------------------------------------------------
+
+void display_phenotype(double* my_phenotype){
+
+    switch (PHENOTYPE_SIZE){
+        case 1:
+            // Monochromatic flags, phenotype ranges from red (0.0) to blue (1.0)
+            pogobot_led_setColor((uint8_t)((1.0 - my_phenotype[0])*25), (uint8_t) 0.0, (uint8_t)(my_phenotype[0]*25));
+            break;
+        case 3:
+            // RGB flags, phenotype ranges from black (0.0, 0.0, 0.0) to white (1.0, 1.0, 1.0)
+            pogobot_led_setColor((uint8_t)(my_phenotype[0]*25), (uint8_t)(my_phenotype[1]*25), (uint8_t)(my_phenotype[2]*25));
+            break;
+    }
+}
+
+//-------------------------------------------------------------
+
+void update_robot_state(uint16_t age){ // state = my_chemicals_to_spread + my_phenotype
+
+    uint16_t i;
+
+    // Reset of initial condition, to avoid the saturation of the inputs in case a high signals spreads (the ANN is not trained to manage different initial conditions)
+    if (age%RESET_NB_IT == 0){
+        for (i=0; i<ann1_input_size; i++){
+            ann1_input_layer[i] = 0.0;
+        }
+        if (DEBUG_LEVEL == 3 || DEBUG_LEVEL == 99) { printf("\n[INPUT FNN] Reset of all neighbors external chemicals.\n"); for (int i = 0; i < ann1_input_size; i++) {printf("\tann1_input_layer[%d] = ", i); print_double(ann1_input_layer[i]); printf("\n");}}
+        pogobot_led_setColor(blue.r, blue.g, blue.b); // blue reset blinking
+        sleep(FLAG_BOOT_TIME); // giving time to reset the neighborhood
+        pogobot_infrared_clear_message_queue();
+    }
+    else{
+        pogobot_led_setColor(white.r, white.g, white.b); // white hanabi blinking
+    }
+
+    fnn_predict( // get the updated ANN1 ann_output_layer, containing chemicals and phenotypes (to normalize, eventually)
+        ann1_input_layer,
+        ann1_output_layer,
+        ann1_nb_layers,
+        ann1_weights_sizes,
+        ann1_weights,
+        ann1_biases,
+        ANN1_ACTIVATION_FUNCTION_ARRAY,
+        ann1_input_size,
+        ann1_output_size
+    );
+
+    if (NB_AGENT_CONTROLLERS == 1){
+        for (i=0; i<CHEMICALS_TO_SPREAD_SIZE; i++){
+            my_chemicals_to_spread[i] = ann1_output_layer[i];
+        }
+        for (i=0; i<PHENOTYPE_SIZE; i++){
+            my_phenotype[i] = (ann1_output_layer[ann1_output_size - PHENOTYPE_SIZE + i] + 1.0) / 2.0; // rescale phenotype x in (-1,1) to (0,1);
+        }
+        return;
+    }
+
+    // In the following options, we combine more than one ANN
+    if (strcmp(ANN2_STACKING_MODE, "ann1_ann2_modelA") == 0){
+        
+        // Model A: 4-x-3_2-y-1
+        // The 1st ANN (4-x-3), used for the learning phase (coordinates system, flag 2D), has:
+        //   - inputs: a signal (chemicals_to_spread) from each neighbor. ann1 input = neighbors_states = [ signal_xy_N, signal_xy_W, signal_xy_E, signal_xy_S ]
+        //   - output: a signal to spread to neighbors, and two phenotype values x and y. ann1 output = [ signal_xy, x, y ]
+        // The 2nd ANN (2-y-1), used to learn the target flag (two-bands, centered-half-discs, ...), has:
+        //   - inputs: x and y from the coordinate system. ann2 input = [ x, y ]
+        //   - output: one phenotype. ann2 output = [ p ]
+        // The final state for an agent, is [signal_xy from ann1, p from ann2]
+        // NB: all phenotypes (x, y, p) are rescaled from (-1,1) to (0,1); ann2 phenotypes (p) will be rescaled in agent2Outputs
+
+        if (!( (strcmp(ANN1_AGENT, "agentCoordinates_gradient") == 0) && ( (strcmp(ANN2_AGENT, "agent2Outputs") == 0) || (strcmp(ANN2_AGENT, "agent2Outputs_RGB") == 0) ) )){
+            printf("Error in compute_robot_state ann1_ann2_modelPIX-A: ANN2_AGENT not correct, check controller parameters.");
+            exit(1);
+        }
+
+        // Here we prepare the ann2_input_layer
+        ann2_input_layer[0] = (ann1_output_layer[1] + 1.0) / 2.0; // rescale phenotype x in (-1,1) to (0,1)
+        ann2_input_layer[1] = (ann1_output_layer[2] + 1.0) / 2.0; // rescale phenotype y in (-1,1) to (0,1)
+
+        fnn_predict(
+            ann2_input_layer,  // we skip signal_xy and we send the pointer on x, as [x,y] are the ANN2 entries
+            ann2_output_layer,
+            ann2_nb_layers,
+            ann2_weights_sizes,
+            ann2_weights,
+            ann2_biases,
+            ANN2_ACTIVATION_FUNCTION_ARRAY,
+            ann2_input_size,
+            ann2_output_size
+        );
+
+        for (i=0; i<CHEMICALS_TO_SPREAD_SIZE; i++){
+            my_chemicals_to_spread[i] = ann1_output_layer[i]; // ANN1 returns the chemicals to share with my neighbors via msg, for all setups
+        }
+        for (i=0; i<PHENOTYPE_SIZE; i++){
+            my_phenotype[i] = (ann2_output_layer[ann2_output_size - PHENOTYPE_SIZE + i] + 1.0) / 2.0; // rescale phenotype x in (-1,1) to (0,1);
+        }
+    }
+
+    else if (strcmp(ANN2_STACKING_MODE, "ann1_ann2_modelC") == 0){
+        
+        // Model C: 4-x-3_6-y-1
+        // The 1st ANN (4-x-3), used for the learning phase (coordinates system, flag 2D), has:
+        //   - inputs: a signal (chemicals_to_spread) from each neighbor. ann1 input = neighbors_states = [ signal_xy_N, signal_xy_W, signal_xy_E, signal_xy_S ]
+        //   - output: a signal to spread to neighbors, and two phenotype values x and y. ann1 output = [ signal_xy, x, y ]
+        // The 2nd ANN (6-y-1), used to learn the target flag (two-bands, centered-half-discs, ...), has:
+        //   - inputs: x and y from the coordinate system, plus the ann1 neighbors_states. ann2 input = [ x, y, signal_xy_N, signal_xy_W, signal_xy_E, signal_xy_S ]
+        //   - output: one phenotype. ann2 output = [ p ]
+        // The final state for an agent, is [signal_xy from ann1, p from ann2]
+        // NB: ann1 phenotypes (x, y) are rescaled from (-1,1) to (0,1); ann2 phenotypes (p) will be rescaled in agent2Outputs
+        
+        if (!( (strcmp(ANN1_AGENT, "agentCoordinates_gradient") == 0) && ( (strcmp(ANN2_AGENT, "agent2Outputs") == 0) || (strcmp(ANN2_AGENT, "agent2Outputs_RGB") == 0) ) )){
+            printf("Error in compute_robot_state ann1_ann2_modelPIX-C: ANN2_AGENT not correct, check controller parameters.");
+            exit(1);
+        }
+
+        // Here we prepare the ann2_input_layer
+        ann2_input_layer[0] = (ann1_output_layer[1] + 1.0) / 2.0; // rescale phenotype x in (-1,1) to (0,1)
+        ann2_input_layer[1] = (ann1_output_layer[2] + 1.0) / 2.0; // rescale phenotype y in (-1,1) to (0,1)
+        for (int i = 0; i < ann1_input_size; i++) {
+            ann2_input_layer[2 + i] = ann1_input_layer[i];
+        }
+
+        fnn_predict(
+            ann2_input_layer,
+            ann2_output_layer,
+            ann2_nb_layers,
+            ann2_weights_sizes,
+            ann2_weights,
+            ann2_biases,
+            ANN2_ACTIVATION_FUNCTION_ARRAY,
+            ann2_input_size,
+            ann2_output_size
+        );
+
+        for (i=0; i<CHEMICALS_TO_SPREAD_SIZE; i++){
+            my_chemicals_to_spread[i] = ann1_output_layer[i]; // ANN1 returns the chemicals to share with my neighbors via msg, for all setups
+        }
+        for (i=0; i<PHENOTYPE_SIZE; i++){
+            my_phenotype[i] = (ann2_output_layer[ann2_output_size - PHENOTYPE_SIZE + i] + 1.0) / 2.0; // rescale phenotype x in (-1,1) to (0,1);
+        }
+    }
+}
+
+//-------------------------------------------------------------
+
+void print_all_chemicals_infos(uint16_t my_pogobot_id, uint16_t age){
+    // printf("\n[I'm Pogobot %d] Current state:\n", my_pogobot_id);
+    // printf("\t[AGE] Age = %d\n", age);
+
+    // printf("\t[INPUT FNN] ann1_input_layer = [ ");
+    // for (int i = 0; i < INPUT_SIZE; i++) {
+    //     print_double(ann1_input_layer[i]); printf(" ");
+    // }
+    // printf("]\n");
+
+    // printf("\t[OUTPUT FNN] ann_output_layer = [ ");
+    // for (int i = 0; i < OUTPUT_SIZE; i++) {
+    //     print_double(ann_output_layer[i]); printf(" ");
+    // }
+    // printf("]\n");
+
+    // printf("\t[MY EXT.CHEMICALS] my_chemicals_to_spread = [ ");
+    // for (int i = 0; i < CHEMICALS_TO_SPREAD_SIZE; i++) {
+    //     print_double(my_chemicals_to_spread[i]); printf(" ");
+    // }
+    // printf("]\n");
+
+    // printf("\t[PHENOTYPE] Phenotype value = "); print_double(my_phenotype); printf("\n");
+}
+
+//-------------------------------------------------------------
+
+void print_double(double val) {
+    
+    // Handle negative values
+    if (val < 0) {
+        putchar('-');
+        val = -val;
+    }
+
+    // Get integer and decimal parts
+    int int_part = (int)val;
+    double dec_part = val - int_part;
+
+    // Adjust the decimal part to the required precision
+    int scaled_dec_part = (int)(dec_part * pow(10, NB_DIGIT) + 0.5);  // Rounding
+
+    // Print the result
+    printf("%d.%0*d", int_part, NB_DIGIT, scaled_dec_part);
+}
+
+//-------------------------------------------------------------
+
+// power_of_ten can only be 1, 10, 100, 1000... etc
+int log_10(int power_of_ten){
+    int pw = 0;
+    int i = 1;
+    while (i < power_of_ten){
+        pw++;
+        i*=10;
+    }
+
+    return pw;
+}
+
+//-------------------------------------------------------------
+
+int double_get_decimal_part(double value){
+	return (int)((value-(int)value)*PRECISION);
+}
+
+//-------------------------------------------------------------
+
+void double_get_decimal_part_string(double value, char *res){
+    
+    int dec_part = double_get_decimal_part(value);
+    
+    int j=10;
+    res[NB_DIGIT] = '\0';
+    for (int i=NB_DIGIT-1; i>=0 && j<=PRECISION; i--){
+        res[i] = (char)((int)((dec_part%j)/(j/10))) + '0';
+        j*=10;
+    }
+}
+
+//-------------------------------------------------------------
+
+int double_get_integer_part(double value) {
+	return (int)value;
+}
 
 // ===================== Fonctions Utiles =====================
 static uint32_t rand_between(uint32_t min, uint32_t max) {
@@ -232,6 +750,7 @@ static void app_init(void){
         check_ttl = CHECK_TIMER_MS;
         seek_ttl = SEEK_MS;
         max_ttl = MAX_MS;
+        finish_ttl = FINISH_MS;
 
         check_phase = CHECK_PHASE_FW;
         rec_input_ttl = REC_INPUT_TIMER_MS;
@@ -253,16 +772,16 @@ static void update_run_tumble(void) {
                 uint8_t ir = mr.header._receiver_ir_index + 1;
 
                 //affichage reception leds
-                uint8_t my_led_index = mr.header._receiver_ir_index + 1;
+                uint8_t my_led_index2 = mr.header._receiver_ir_index + 1;
                 pogobot_led_setColors(0, 0, 25, ir);
-                if (my_led_index > 0) // default value is -1. my_led_index value is 1, 2, 3 or 4 in case of IR reception activity
+                if (my_led_index2 > 0) // default value is -1. my_led_index2 value is 1, 2, 3 or 4 in case of IR reception activity
                 {
                     for (int i  = 1; i < 5 ; i++)
                 
                     {
                         pogobot_led_setColors(0, 0, 0, i);
                     }
-                    my_led_index = -1;
+                    my_led_index2 = -1;
                 }
             
                 grid_msg_t recv;
@@ -349,6 +868,22 @@ static void update_run_tumble(void) {
 
 static void update_root(void){
     pogobot_led_setColor(green.r, green.g, green.b);
+    if(MESSAGE == 1){
+            pogobot_infrared_update();
+            if (pogobot_infrared_message_available()) {
+                int msg_rcv = 0;
+                while (pogobot_infrared_message_available() && msg_rcv < MAX_NB_OF_MSG){
+                    message_t mr;
+                    pogobot_infrared_recover_next_message(&mr);
+                    if(mr.header._sender_ir_index == 0 || mr.header._sender_ir_index == 3){
+                        mode = MODE_FLAG;
+                        pogobot_stopwatch_reset(&finish_timer);
+                        motors_stop();
+                        break;
+                    }
+                } 
+            }
+        }
     if(rand()*100<=P_MSG){
         pogobot_led_setColors(red.r, red.g, red.b, 3);
         pogobot_infrared_sendLongMessage_uniSpe(2, (uint8_t*)&pos, GRID_MSG_SIZE);
@@ -607,6 +1142,12 @@ static void update_connected(void){
                 while (pogobot_infrared_message_available() && msg_rcv < MAX_NB_OF_MSG){
                     message_t mr;
                     pogobot_infrared_recover_next_message(&mr);
+                    if(mr.header._sender_ir_index == 0 || mr.header._sender_ir_index == 3){
+                        mode = MODE_FLAG;
+                        pogobot_stopwatch_reset(&finish_timer);
+                        motors_stop();
+                        break;
+                    }
                     if(pos.col == 0){
                         if(mr.header._receiver_ir_index  == 0){
                         pogobot_stopwatch_reset(&rec_input_timer);
@@ -653,12 +1194,16 @@ static void update_connected(void){
             pogobot_infrared_sendLongMessage_uniSpe(2, (uint8_t*)&pos, GRID_MSG_SIZE);
             pogobot_led_setColors(red.r, red.g, red.b, 3);
         }
-        if(pos.col < MAX_GRID) {
+        if(pos.col < MAX_GRID) {;
             pogobot_infrared_sendLongMessage_uniSpe(1, (uint8_t*)&pos, GRID_MSG_SIZE);
             pogobot_led_setColors(red.r, red.g, red.b, 2);
         }
         printf("%u %u", pos.row, pos.col);
 
+    }
+    if(pos.row == MAX_GRID && pos.col == MAX_GRID){
+        pogobot_stopwatch_reset(&finish_timer);
+        mode = MODE_FLAG;
     }
 }
 
@@ -675,15 +1220,15 @@ static void update_align_to_seek(void){
                 uint8_t ir = mr.header._receiver_ir_index + 1;
 
                 //affichage reception leds
-                uint8_t my_led_index = mr.header._receiver_ir_index + 1;
+                uint8_t my_led_index2 = mr.header._receiver_ir_index + 1;
                 pogobot_led_setColors(0, 0, 25, ir);
-                if (my_led_index > 0) // default value is -1. my_led_index value is 1, 2, 3 or 4 in case of IR reception activity
+                if (my_led_index2 > 0) // default value is -1. my_led_index2 value is 1, 2, 3 or 4 in case of IR reception activity
                 {
                     for (int i  = 1; i < 5 ; i++)
                     {
                         pogobot_led_setColors(0, 0, 0, i);
                     }
-                    my_led_index = -1;
+                    my_led_index2 = -1;
                 }
 
                 grid_msg_t recv;
@@ -743,6 +1288,172 @@ static void update_seek_root(void){
     }
 }
 
+static void update_flag(void){
+    pogobot_led_setColor(yellow.r, yellow.g, yellow.b);
+    for(int i=0;i<5;i++) pogobot_led_setColors(0,0,0,i);
+    pogobot_infrared_sendLongMessage_uniSpe(0, (__uint8_t*)4, (__uint16_t) 4);
+    pogobot_led_setColors(red.r, red.g, red.b, 1);
+    pogobot_infrared_sendLongMessage_uniSpe(3, (__uint8_t*)4, (__uint16_t) 4);
+    pogobot_led_setColors(red.r, red.g, red.b, 4);
+    uint32_t elapsed = (uint32_t)(pogobot_stopwatch_get_elapsed_microseconds(&finish_timer) / 1000);
+    if(elapsed > finish_ttl){ 
+        mode = MODE_FLAG_LIGHT;
+        flag_light_initialized = false;
+}
+}
+
+
+static void update_flag_light(void){
+
+    if(!flag_light_initialized){
+        timeout_NWES[0] = timeout_N;
+        timeout_NWES[1] = timeout_W;
+        timeout_NWES[2] = timeout_E;
+        timeout_NWES[3] = timeout_S;
+
+        my_pogobot_id = pogobot_helper_getid();
+        age = 0;
+        counter_rcvd_msgs = 0;
+        my_led_index = -1;
+        color_index = -1;
+
+        for (int i=0; i<ann1_input_size; i++)
+            ann1_input_layer[i] = 0.0;
+
+        for (int i=0; i<CHEMICALS_TO_SPREAD_SIZE; i++)
+            my_chemicals_to_spread[i] = 0.0;
+    
+        for (int i=0; i<PHENOTYPE_SIZE; i++)
+            my_phenotype[i] = 0.0;
+
+        for (uint16_t i=0; i != MSG_SIZE; i++)
+            msg_from_neighbor.msg_array[i] = 0;
+
+        pogobot_stopwatch_reset(&timeout_phenotypic_freshness);
+        pogobot_stopwatch_reset(&timeout_N);
+        pogobot_stopwatch_reset(&timeout_W);
+        pogobot_stopwatch_reset(&timeout_E);
+        pogobot_stopwatch_reset(&timeout_S);
+
+        flag_light_initialized = true;
+    }
+
+    motors_stop();
+
+    if (((double)rand() / (double)RAND_MAX) < p_change_led_color){
+        age++;
+        update_robot_state(age);
+        pogobot_stopwatch_reset(&timeout_phenotypic_freshness);
+
+        if (DEBUG_LEVEL == 1 || DEBUG_LEVEL == 99) printf("\n[I'm Pogobot %d] [AGE] Incrementing age to %d because I'm lucky\n", my_pogobot_id, age);
+        if (DEBUG_LEVEL == 3 || DEBUG_LEVEL == 99) {printf("\n[I'm Pogobot %d] [INPUT FNN] Chemicals and phenotype updated\n", my_pogobot_id); print_all_chemicals_infos(my_pogobot_id, age);}
+    }
+
+    for (nb_ir=0; nb_ir<4; nb_ir++){
+        seconds = pogobot_stopwatch_get_elapsed_microseconds(&timeout_NWES[nb_ir]) / 1000000;
+        if (seconds >= max_chemicals_to_spread_validity_time_seconds){
+            for (int i=nb_ir*CHEMICALS_TO_SPREAD_SIZE; i<(nb_ir*CHEMICALS_TO_SPREAD_SIZE)+CHEMICALS_TO_SPREAD_SIZE; i++)
+                ann1_input_layer[i] = 0.0;
+                
+            pogobot_stopwatch_reset(&timeout_NWES[nb_ir]);
+
+            if (DEBUG_LEVEL == 3 || DEBUG_LEVEL == 99) { printf("\n[I'm Pogobot %d] [INPUT FNN] Reset of neighbors external chemicals on IR n.%d.\n", my_pogobot_id, nb_ir); for (int i = 0; i < ann1_input_size; i++) {printf("\tann1_input_layer[%d] = ", i); print_double(ann1_input_layer[i]); printf("\n");}}
+        }
+    }
+        
+    seconds = pogobot_stopwatch_get_elapsed_microseconds(&timeout_phenotypic_freshness) / 1000000;
+    if (seconds >= phenotypic_freshness_time_seconds){
+        pogobot_led_setColor(0, 0, 0);
+    } else if (seconds >= hanabi_blinking_time_seconds){ 
+        display_phenotype(my_phenotype);
+    }
+
+    pogobot_infrared_update();
+
+    if (pogobot_infrared_message_available()){
+        counter_rcvd_msgs = 0;
+            
+        while (pogobot_infrared_message_available() && counter_rcvd_msgs < MAX_NB_OF_MSG) {                
+            message_t mr;
+            pogobot_infrared_recover_next_message(&mr);
+
+            if (mr.header._packet_type != ir_t_user) {
+                printf("[I'm Pogobot %d] [RECV] This message is discarded because it didn't come from a Pogobot\n", my_pogobot_id);
+                continue;
+            }
+       
+            for (uint16_t i = 0; i != MSG_SIZE; i++)
+                msg_from_neighbor.msg_array[i] = mr.payload[i];
+
+            printf("\treceived msg = [ "); for (int i = 0; i <CHEMICALS_TO_SPREAD_SIZE; i++) {print_double(msg_from_neighbor.msg_values.chemicals_to_spread[i]); printf(" ");} printf("]\n");
+
+            my_receiver_ir_index = mr.header._receiver_ir_index;
+            my_led_index = my_receiver_ir_index + 1;
+            pogobot_led_setColors(0, 0, 25, my_led_index);
+
+            if (DEBUG_LEVEL == 2 || DEBUG_LEVEL == 99) {printf("\n[I'm Pogobot %d] [MSG] New message received on IR n.%d. Received msg = [ \n", my_pogobot_id, my_receiver_ir_index); for (int i = 0; i <CHEMICALS_TO_SPREAD_SIZE; i++) {print_double(msg_from_neighbor.msg_values.chemicals_to_spread[i]); printf(" ");} printf("]\n");}
+
+            switch (my_receiver_ir_index){
+                case 0:
+                    starting_index_NWES = 0;
+                    break;
+                case 1:
+                    starting_index_NWES = 2*CHEMICALS_TO_SPREAD_SIZE;
+                    break;
+                case 2:
+                    starting_index_NWES = 3*CHEMICALS_TO_SPREAD_SIZE;
+                    break;
+                case 3:
+                    starting_index_NWES = CHEMICALS_TO_SPREAD_SIZE;
+                    break;
+            }
+
+            for(int j = 0; j < CHEMICALS_TO_SPREAD_SIZE; j++){
+                ann1_input_layer[starting_index_NWES + j] = msg_from_neighbor.msg_values.chemicals_to_spread[j];
+            }
+            pogobot_stopwatch_reset(&timeout_NWES[my_receiver_ir_index]);
+
+            if (DEBUG_LEVEL == 3 || DEBUG_LEVEL == 99) {printf("\n[I'm Pogobot %d] [MSG] New neighbors external chemicals received on IR n.%d\n", my_pogobot_id, my_receiver_ir_index); printf("\treceived msg = [ "); for (int i = 0; i <CHEMICALS_TO_SPREAD_SIZE; i++) {print_double(msg_from_neighbor.msg_values.chemicals_to_spread[i]); printf(" ");} printf("]\n"); printf("\tann1_input_layer = [ "); for (int i = 0; i < ann1_input_size; i++) {print_double(ann1_input_layer[i]); printf(" ");} printf("]\n");}
+
+            if (msg_from_neighbor.msg_values.age > age && color_index < nb_rgb_colors && (msg_from_neighbor.msg_values.age - age) < 10000) {
+                age = msg_from_neighbor.msg_values.age;
+                update_robot_state(age);
+                pogobot_stopwatch_reset(&timeout_phenotypic_freshness);
+
+                if (DEBUG_LEVEL == 3 || DEBUG_LEVEL == 99) {printf("\n[I'm Pogobot %d] [INPUT FNN] Chemicals and phenotype updated\n", my_pogobot_id); print_all_chemicals_infos(my_pogobot_id, age);}
+            }
+            counter_rcvd_msgs++;
+        }
+    }
+    else {
+        if (my_led_index > 0){
+            for (int i  = 1; i < 5 ; i++){
+                pogobot_led_setColors(0, 0, 0, i);
+            }
+            my_led_index = -1;
+        }
+    }
+    pogobot_infrared_clear_message_queue();
+
+    if (((double)rand() / (double)RAND_MAX) < p_send_per_step){
+
+        msg_from_neighbor.msg_values.sender_id = my_pogobot_id;
+        msg_from_neighbor.msg_values.age = age;
+            
+        for (uint16_t i = 0; i != CHEMICALS_TO_SPREAD_SIZE; i++){
+            msg_from_neighbor.msg_values.chemicals_to_spread[i] = my_chemicals_to_spread[i];
+        }
+
+        for (uint16_t i = 0; i != MSG_SIZE; i++)
+            data[i] = msg_from_neighbor.msg_array[i];
+
+        pogobot_infrared_sendLongMessage_omniGen((uint8_t *)(data), MSG_SIZE);
+        if (((double)rand() / (double)RAND_MAX) < 0.001){
+            if (DEBUG_LEVEL == 3 || DEBUG_LEVEL == 99) {printf("\n[I'm Pogobot %d] [MSG] New message sent in all directions.\n", my_pogobot_id); for (uint16_t i = 0; i != CHEMICALS_TO_SPREAD_SIZE; i++) {printf("\tmsg_from_neighbor.msg_values.chemicals_to_spread[%d] = ", i); print_double(msg_from_neighbor.msg_values.chemicals_to_spread[i]); printf("\n");}}
+        }
+    }
+}
+
 static void update_mode(void){
     //if(MESSAGE==1){
     //    update_message();
@@ -773,11 +1484,17 @@ static void update_mode(void){
         case MODE_CONNECTED:
             update_connected();
             break;
+        case MODE_FLAG:
+            update_flag();
+            break;
         case MODE_ALIGN_TO_SEEK:
             update_align_to_seek();
             break;
         case MODE_SEEK_ROOT:
             update_seek_root();
+            break;
+        case MODE_FLAG_LIGHT:
+            update_flag_light();
             break;
     }
 }
@@ -788,6 +1505,8 @@ int main(void) {
     pogobot_init();
     srand(pogobot_helper_getRandSeed()); // initialize the random number generator
     //pogobot_infrared_set_power(INFRARED_POWER); // set the power level used to send all the next messages
+
+
     
     if (DEBUG_LEVEL) {
         printf("\n");
@@ -809,6 +1528,8 @@ int main(void) {
     // ********************************************************************************
     time_reference_t mystopwatch; // timer for step synchronization 
     uint32_t microseconds = 0; // counter for step synchronization
+
+    
     // ********************************************************************************
     // * Start-up phase for simultaneous start of the robots when the lights turn off
     // ********************************************************************************
@@ -819,7 +1540,7 @@ int main(void) {
         //printf("[I'm Pogobot %d] Photosensor msg_values 0: %d, 1: %d, 2: %d\n", my_pogobot_id, photo0, photo1, photo2);
 
     pogobot_led_setColor(white.r, white.g, white.b); // set boot led color to white
-    sleep(BOOT_TIME);
+    sleep(FLAG_BOOT_TIME);
     // pogobot_stopwatch_reset(&timeout_age_watch); // reset of the timer, for age timeout
     
     app_init();
@@ -828,6 +1549,10 @@ int main(void) {
     // * Main loop
     // ********************************************************************************
 
+     
+
+
+    if (DEBUG_LEVEL) {printf("\n------------------------------ initialization ------------------------------\n"); print_all_chemicals_infos(my_pogobot_id, age);}
     while (1)
     {
         pogobot_stopwatch_reset(&mystopwatch); // reset of the timer, for step synchronization
